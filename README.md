@@ -4,3 +4,4 @@
 - UI/UX Design & FronEnd: Mary Micah G. Lapuz
 - Fullstack Developer:  Kyle Eishley G. Payawal
 - Technical Writer & UI/UX Design: Maxene P. Quiambao
+- Technical Writer & UI/UX Design: Clarence Lane C. Parungao
