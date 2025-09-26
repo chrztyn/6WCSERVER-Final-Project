@@ -1,158 +1,36 @@
-// IMPORTS & INSTALLATION 
+// ========= IMPORTS & INSTALLATION ==========
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const bcrypt = require('bcrypt');
-const authMiddleware = require('./middleware/auth');
-const authRoutes = require('./routes/auth');
-
-const Users = require('./models/users');
-const Groups = require('./models/groups');
-const Expense = require('./models/expense');
-const Balance = require('./models/balance');
-const Payment = require('./models/payment');
-const Budget = require('./models/budget');
-const ActivityCollection = require('./models/act_collection');
-const DebtTracking = require('./models/debt_tracking');
-const TransactionHistory = require('./models/transaction_history')
-const Notification = require('./models/notifications');
 
 const PORT = process.env.PORT || 3001;
 const app = express();
 
-// MIDDLEWARE 
+// ========= MIDDLEWARE ===========
 app.use(cors());
 app.use(express.json());
 
-// VUE.JS INTEGRATION
+// ========= VUE.JS INTEGRATION =========
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// DATABASE CONNECTION
+// ========= DATABASE CONNECTION ========
 const dbURI = process.env.MONGODB_URI;
 mongoose.connect(dbURI)
   .then(() => console.log('MongoDB successfully connected'))
   .catch(err => console.error('Error connecting to MongoDB:',err));
 
-const apiRouter = express.Router();
+// ================== ROUTES ===================
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users')
+const groupRoutes = require('./routes/groups')
+const expenseRoutes = require('./routes/expense')
 
-// ================== USERS ===================
-// VIEW the user infos using JWT so that its secured
-apiRouter.get('/user/profile', authMiddleware, async (req, res) => {
-  try {
-    const user = await Users.findById(req.user._id).select('-password_hash');
-    if (!user) return res.status(404).json({ msg: 'User not found' });
-    res.json(user);
-  } catch (err) {
-res.status(500).json({ msg: 'Server error', error: err.message });
-  }
-});
-
-//EDIT user infos
-apiRouter.put('/user/profile', authMiddleware, async (req, res) => {
-  try {
-    const user = await Users.findById(req.user._id);
-    if (!user) return res.status(404).json({msg: "User not found"});
-
-    const{name, phone_number,payment_methods} = req.body;
-
-    if (name) user.name = name;
-    if (phone_number) user.phone_number = phone_number;
-    if (payment_methods) user.payment_methods = payment_methods;
-
-    await user.save();
-
-    res.json({
-      message: 'Information updated successfully',
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        phone_number: user.phone_number,
-        joined_groups: user.joined_groups,
-        payment_methods: user.payment_methods
-      }
-    });
-  } catch (err) {
-    res.status(500).send('Server error: ' + err.message);
-  }
-});
-
-// ================== GROUPS ===================
-// CREATE a group 
-apiRouter.post('/groups', authMiddleware, async (req, res) => {
-  try {
-    const { name, members, description } = req.body;
-
-    const creator = await Users.findById(req.user);
-    if (!creator) return res.status(404).json({ error: "Creator not found" });
-
-    const groupMembers = await Users.find({ email: { $in: members } });
-
-    const memberIds = [...new Set([
-      creator._id.toString(),
-      ...groupMembers.map(u => u._id.toString())
-    ])];
-
-    const group = new Groups({
-      name,
-      created_by: creator._id,
-      members: memberIds,
-      description
-    });
-
-    const savedGroup = await group.save(); 
-    const populatedGroup = await savedGroup.populate([
-      { path: 'created_by', select: 'name email' },
-      { path: 'members', select: 'name email' }
-    ]);
-    res.status(201).json(populatedGroup);
-
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// VIEW the group the user joined
-apiRouter.get('/groups/my', authMiddleware, async (req, res) => {
-  try{
-    const groups = await Groups.find({members: req.user._id})
-      .populate([
-        {path: 'members', select: 'name email -_id'},
-        {path: 'created_by',select: 'name email -_id'}
-      ]);
-
-      res.json(groups);
-  }catch (err) {
-    res.status(500).send('Server error' + err.message);
-  }
-});
-
-// DELETE / LEAVE group
-apiRouter.delete('/groups/:id/leave', authMiddleware, async (req, res) => {
-  try{
-    const group = await Groups.findById(req.params.id);
-    if (!group) return res.status(404).json({msg: 'Group not found'});
-
-    group.members = group.members.filter(
-      (memberId) => memberId.toString() !== req.user._id
-    );
-    await group.save();
-
-        await Users.findByIdAndUpdate(req.user._id, {
-      $pull: { joined_groups: group._id }
-    });
-
-    res.json({ message: 'Left group successfully' });
-  }catch (err) {
-    res.status(500).send('Server error: ' + err.message);
-  }
-});
-
-// ================ EXPENSE ==================
-
-app.use('/api', apiRouter);
+// ================== MOUNT ROUTERS ===================
 app.use('/api/auth', authRoutes);
-app.listen(PORT, () => console.log(`Server running on port http://localhost:${PORT}`));
+app.use('/api/users', userRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/expenses', expenseRoutes);
 
+app.listen(PORT, () => console.log(`Server running on port http://localhost:${PORT}`));
