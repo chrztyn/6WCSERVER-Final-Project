@@ -41,7 +41,7 @@ const apiRouter = express.Router();
 // VIEW the user infos using JWT so that its secured
 apiRouter.get('/user/profile', authMiddleware, async (req, res) => {
   try {
-    const user = await Users.findById(req.user).select('-password_hash');
+    const user = await Users.findById(req.user._id).select('-password_hash');
     if (!user) return res.status(404).json({ msg: 'User not found' });
     res.json(user);
   } catch (err) {
@@ -114,6 +114,43 @@ apiRouter.post('/groups', authMiddleware, async (req, res) => {
   }
 });
 
+// VIEW the group the user joined
+apiRouter.get('/groups/my', authMiddleware, async (req, res) => {
+  try{
+    const groups = await Groups.find({members: req.user._id})
+      .populate([
+        {path: 'members', select: 'name email -_id'},
+        {path: 'created_by',select: 'name email -_id'}
+      ]);
+
+      res.json(groups);
+  }catch (err) {
+    res.status(500).send('Server error' + err.message);
+  }
+});
+
+// DELETE / LEAVE group
+apiRouter.delete('/groups/:id/leave', authMiddleware, async (req, res) => {
+  try{
+    const group = await Groups.findById(req.params.id);
+    if (!group) return res.status(404).json({msg: 'Group not found'});
+
+    group.members = group.members.filter(
+      (memberId) => memberId.toString() !== req.user._id
+    );
+    await group.save();
+
+        await Users.findByIdAndUpdate(req.user._id, {
+      $pull: { joined_groups: group._id }
+    });
+
+    res.json({ message: 'Left group successfully' });
+  }catch (err) {
+    res.status(500).send('Server error: ' + err.message);
+  }
+});
+
+// ================ EXPENSE ==================
 
 app.use('/api', apiRouter);
 app.use('/api/auth', authRoutes);
