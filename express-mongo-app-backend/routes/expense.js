@@ -54,4 +54,36 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
     }
 });
 
+// VIEW expenses
+router.get('/:groupId', authMiddleware, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const group = await Groups.findById(groupId);
+    if (!group) return res.status(404).json({ msg: 'Group not found' });
+
+    const expenses = await Expense.find({ group: groupId })
+      .populate('paid_by', 'name email -_id')
+      .populate('group', 'name description -_id');
+
+    const formattedExpenses = expenses.map(expense => ({
+      description: expense.description,
+      payor: expense.paid_by.map(user => ({ name: user.name, email: user.email })), 
+      amount: expense.amount,
+      date: expense.date,
+      status: expense.status
+    }));
+
+    res.json({
+      group: {
+        name: group.name,
+        description: group.description
+      },
+      expenses: formattedExpenses
+    });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;
