@@ -50,7 +50,34 @@ res.status(500).json({ msg: 'Server error', error: err.message });
 });
 
 //EDIT user infos
+apiRouter.put('/user/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await Users.findById(req.user._id);
+    if (!user) return res.status(404).json({msg: "User not found"});
 
+    const{name, phone_number,payment_methods} = req.body;
+
+    if (name) user.name = name;
+    if (phone_number) user.phone_number = phone_number;
+    if (payment_methods) user.payment_methods = payment_methods;
+
+    await user.save();
+
+    res.json({
+      message: 'Information updated successfully',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone_number: user.phone_number,
+        joined_groups: user.joined_groups,
+        payment_methods: user.payment_methods
+      }
+    });
+  } catch (err) {
+    res.status(500).send('Server error: ' + err.message);
+  }
+});
 
 // ================== GROUPS ===================
 // CREATE a group 
@@ -75,7 +102,7 @@ apiRouter.post('/groups', authMiddleware, async (req, res) => {
       description
     });
 
-    const savedGroup = await group.save();
+    const savedGroup = await group.save(); 
     const populatedGroup = await savedGroup.populate([
       { path: 'created_by', select: 'name email' },
       { path: 'members', select: 'name email' }
