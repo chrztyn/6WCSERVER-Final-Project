@@ -26,11 +26,15 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users')
 const groupRoutes = require('./routes/groups')
 const expenseRoutes = require('./routes/expense')
+const balanceRoutes = require('./routes/balance');
+const paymentRoutes = require('./routes/payment')
 
 // ================== MOUNT ROUTERS ===================
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/balances', balanceRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.listen(PORT, () => console.log(`Server running on port http://localhost:${PORT}`));

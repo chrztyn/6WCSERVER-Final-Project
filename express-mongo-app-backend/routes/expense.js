@@ -3,6 +3,7 @@ const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const Groups = require('../models/groups');
 const Expense = require('../models/expense');
+const Balance = require('../models/balance');
 const router = express.Router();
 
 // ADD expense to a group
@@ -40,6 +41,58 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
         });
 
         await expense.save();
+
+        // UPDATE the balance
+        const share = amount / group.members.length;
+
+        let memberShare = {};
+        
+        for (let member of group.members){
+          memberShare[member.toString()] = share;
+        }
+
+        const contribution = amount / payorUsers.length;
+        for (let payor of payorUsers){
+          memberShare[payor._id.toString()] -= contribution;
+        }
+
+        for (let debtorId of Object.keys(memberShare)){
+          const balanceValue = memberShare[debtorId];
+
+          if (balanceValue > 0){
+            for (let payor of payorUsers){
+              const payorId = payor._id.toString();
+
+              if (debtorId !== payorId){
+                let balance = await Balance.findOne({
+                  group_id: groupId,
+                  user_id: debtorId,
+                  owed_to: payorId
+                });
+                
+                const owedAmount = share;
+
+                if (balance) {
+                  balance.amount += owedAmount;
+                  balance.status = 'unpaid';
+                  await balance.save();
+                }else{
+                  const newBalance = new Balance({
+                    group_id: groupId,
+                    user_id: debtorId,
+                    owed_to: payorId,
+                    amount: owedAmount,
+                    status: 'unpaid'
+                  });
+
+                  await newBalance.save();
+                }
+              }
+
+            }
+          }
+        }
+
         const populatedExpense = await expense.populate([
             { path: 'paid_by', select: 'name email -_id' },
             { path: 'group', select: 'name description -_id' }
@@ -63,8 +116,8 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
     if (!group) return res.status(404).json({ msg: 'Group not found' });
 
     const expenses = await Expense.find({ group: groupId })
-      .populate('paid_by', 'name email -_id')
-      .populate('group', 'name description -_id');
+      .populate('paid_by', 'name email', '-_id')
+      .populate('group', 'name description','-_id');
 
     const formattedExpenses = expenses.map(expense => ({
       description: expense.description,

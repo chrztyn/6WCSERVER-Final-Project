@@ -8,11 +8,13 @@ const balanceSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, ref: 'User' 
   },
   owed_to: { 
-    type: mongoose.Schema.Types.ObjectId, ref: 'User' 
+    type: mongoose.Schema.Types.ObjectId, ref: 'User',
+    required: false
   },
   amount: { 
     type: Number, 
-    required: true 
+    required: true,
+    default: 0
   },
   status: { 
     type: String, 
