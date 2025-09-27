@@ -13,28 +13,29 @@ export default {
     }
   },
   emits: ['close', 'select-group'],
+
   data() {
     return {
       groups: [
         {
           id: 1,
           name: "Group 1",
-          activity: "Beach Vacation",
+          activity: "Activity Name",
         },
         {
           id: 2,
-          name: "Dinner Club",
-          activity: "Monthly Dinners",
+          name: "Group 2",
+          activity: "Activity Name",
         },
         {
           id: 3,
-          name: "Gym Buddies",
-          activity: "Personal Training",
+          name: "Group 3",
+          activity: "Activity Name",
         },
         {
           id: 4,
-          name: "Study Group",
-          activity: "Course Materials",
+          name: "Group 4",
+          activity: "Activity Name",
         }
       ]
     };
@@ -86,9 +87,7 @@ export default {
           
           <!-- Add Group Button -->
           <button class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors mb-4 flex items-center justify-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
+          <img src="/Icons/light add.png" alt="Dashboard Icon" class="w-5 h-5"> 
             Add New Group
           </button>
         </div>

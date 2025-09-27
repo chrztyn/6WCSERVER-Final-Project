@@ -18,7 +18,8 @@ export default {
     },
     selectGroup(group) {
       console.log('Selected group:', group);
-      // this.$router.push(`/group/${group.id}`);
+      // Navigate to the specific group expense list
+      this.$router.push(`/group/${group.id}`);
       this.closeGroupList();
     }
   }

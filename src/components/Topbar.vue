@@ -17,7 +17,7 @@ export default{
             </svg>
         </div>
     <div class="h-10 w-10 rounded-lg bg-[#0761FE] hover:bg-[#013DC0] flex items-center justify-center border-none p-0">
-        <img src="/public/icons/light notif.png" alt="Light Notification Icon" class="h-6 w-6">
+        <img src="/Icons/light notif.png" alt="Light Notification Icon" class="h-6 w-6">
     </div>
     </div>
 </template>

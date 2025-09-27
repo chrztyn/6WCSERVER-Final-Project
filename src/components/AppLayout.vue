@@ -22,8 +22,8 @@ export default {
         },
         selectGroup(group) {
             console.log('Selected group:', group);
-            // Here you can add navigation to the specific group page
-            // this.$router.push(`/group/${group.id}`);
+            // Navigate to the specific group expense list
+            this.$router.push(`/group/${group.id}`);
             this.closeGroupList();
         }
     },
@@ -51,8 +51,4 @@ export default {
         />
     </div>
 </template>
-
-<style scoped>
-/* Styles are now handled by GroupListOverlay component */
-</style>
 

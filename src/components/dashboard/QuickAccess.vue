@@ -11,17 +11,17 @@ export default {
     <Card class="card">
         <div class="flex items-center gap-3 mb-6">
             <div class="h-8 w-8 rounded-lg bg-[#0761FE] flex items-center justify-center">
-                <img src="/public/icons/light quick.png" alt="Quick Access Icon" class="w-5 h-5"> 
+                <img src="/Icons/light quick.png" alt="Quick Access Icon" class="w-5 h-5"> 
             </div>
             <h3 class="text-lg font-semibold text-[#013DC0]">Quick Access</h3>
         </div>
         <div class="grid grid-cols-2 gap-4">
             <button class="button w-full flex items-center justify-center gap-2">
-                <img src="/public/icons/light add.png" alt="Dashboard Icon" class="w-5 h-5"> 
+                <img src="/Icons/light add.png" alt="Dashboard Icon" class="w-5 h-5"> 
                 New Group
             </button>
             <button class="button w-full flex items-center justify-center gap-2">
-                <img src="/public/icons/light debt.png" alt="Dashboard Icon" class="w-5 h-5"> 
+                <img src="/Icons/light debt.png" alt="Dashboard Icon" class="w-5 h-5"> 
                 Settle Debt
             </button>
         </div>
