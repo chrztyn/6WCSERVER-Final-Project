@@ -84,7 +84,7 @@ const handleLogin = async () => {
       // Redirect to dashboard or emit event to parent component
       console.log('Login successful:', data.user)
       // You can add router navigation here:
-      this.$router.push('/dashboard')
+      router.push('/dashboard')
     } else {
       errorMessage.value = data.message || 'Login failed'
     }
