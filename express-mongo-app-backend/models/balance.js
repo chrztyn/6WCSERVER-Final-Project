@@ -18,7 +18,7 @@ const balanceSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['unpaid', 'paid'], default: 'unpaid' 
+    enum: ['unpaid', 'partial','paid'], default: 'unpaid' 
   }
 });
 

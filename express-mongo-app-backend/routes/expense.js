@@ -3,108 +3,72 @@ const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const Groups = require('../models/groups');
 const Expense = require('../models/expense');
-const Balance = require('../models/balance');
+const { updateBalancesAfterExpense } = require('../utils/updateBalance'); 
+
 const router = express.Router();
 
 // ADD expense to a group
 router.post('/:groupId', authMiddleware, async (req, res) => {
-    try{
-        const {groupId} = req.params;
-        const {description, amount, paid_by, date, status } = req.body;
-        const group = await Groups.findById(groupId);
-        const payorUsers = await Users.find({ email: { $in: paid_by } });
+  try {
+    const { groupId } = req.params;
+    const { description, amount, paid_by, date, status } = req.body;
 
-  
-        if (payorUsers.length !== paid_by.length) {
-        return res.status(404).json({ msg: 'Some payors are not members of the group' });
-        }
+    const group = await Groups.findById(groupId);
+    if (!group) return res.status(404).json({ msg: 'Group not found' });
 
-        const memberIds = group.members.map(id => id.toString());
-        const invalidPayors = payorUsers.filter(
-        user => !memberIds.includes(user._id.toString())
-        );
-
-        if (invalidPayors.length > 0) {
-        return res.status(400).json({
-            msg: 'Some payors are not members of the group',
-            invalid: invalidPayors.map(u => u.email)
-        });
-        }
-
-        const expense = new Expense({
-            group: groupId,
-            paid_by: payorUsers.map(u => u._id),
-            description,
-            amount,
-            date: date || Date.now(),
-            status : status || 'pending'
-        });
-
-        await expense.save();
-
-        // UPDATE the balance
-        const share = amount / group.members.length;
-
-        let memberShare = {};
-        
-        for (let member of group.members){
-          memberShare[member.toString()] = share;
-        }
-
-        const contribution = amount / payorUsers.length;
-        for (let payor of payorUsers){
-          memberShare[payor._id.toString()] -= contribution;
-        }
-
-        for (let debtorId of Object.keys(memberShare)){
-          const balanceValue = memberShare[debtorId];
-
-          if (balanceValue > 0){
-            for (let payor of payorUsers){
-              const payorId = payor._id.toString();
-
-              if (debtorId !== payorId){
-                let balance = await Balance.findOne({
-                  group_id: groupId,
-                  user_id: debtorId,
-                  owed_to: payorId
-                });
-                
-                const owedAmount = share;
-
-                if (balance) {
-                  balance.amount += owedAmount;
-                  balance.status = 'unpaid';
-                  await balance.save();
-                }else{
-                  const newBalance = new Balance({
-                    group_id: groupId,
-                    user_id: debtorId,
-                    owed_to: payorId,
-                    amount: owedAmount,
-                    status: 'unpaid'
-                  });
-
-                  await newBalance.save();
-                }
-              }
-
-            }
-          }
-        }
-
-        const populatedExpense = await expense.populate([
-            { path: 'paid_by', select: 'name email -_id' },
-            { path: 'group', select: 'name description -_id' }
-        ]);
-
-        res.status(201).json({
-            message: 'Expense added successfully',
-            expense: populatedExpense
-        });
-    } catch (err) {
-        res.status(500).json({ msg: 'Server error', error: err.message });
+    const payorUsers = await Users.find({ email: { $in: paid_by } });
+    if (payorUsers.length !== paid_by.length) {
+      return res.status(404).json({ msg: 'Some payors are not members of the group' });
     }
+
+    const memberIds = group.members.map(id => id.toString());
+    const invalidPayors = payorUsers.filter(
+      user => !memberIds.includes(user._id.toString())
+    );
+
+    if (invalidPayors.length > 0) {
+      return res.status(400).json({
+        msg: 'Some payors are not members of the group',
+        invalid: invalidPayors.map(u => u.email)
+      });
+    }
+
+
+    const expense = new Expense({
+      group: groupId,
+      paid_by: payorUsers.map(u => u._id),
+      description,
+      amount,
+      date: date || Date.now(),
+      status: status || 'pending'
+    });
+    await expense.save();
+
+    const share = amount / group.members.length;
+    let memberShare = {};
+    for (let member of group.members) {
+      memberShare[member.toString()] = share;
+    }
+
+    const contribution = amount / payorUsers.length;
+    for (let payor of payorUsers) {
+      memberShare[payor._id.toString()] -= contribution;
+    }
+
+    await updateBalancesAfterExpense(groupId, memberShare, payorUsers);
+
+    const populatedExpense = await expense.populate([
+      { path: 'paid_by', select: 'name email -_id' },
+      { path: 'group', select: 'name description -_id' }
+    ]);
+
+    res.status(201).json({
+      message: 'Expense added successfully',
+      expense: populatedExpense
+    });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
 });
 
 // VIEW expenses
