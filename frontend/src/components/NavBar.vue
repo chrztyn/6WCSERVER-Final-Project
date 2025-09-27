@@ -1,5 +1,4 @@
 <script setup>
-    import { defineOptions } from "vue"
     import Button from "./ui/button/Button.vue";
 
     defineOptions({
@@ -14,8 +13,8 @@
             <span class="self-center text-3xl font-bold whitespace-nowrap dark:text-white">SplitSmart</span>
         </a>
         <div class="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
-            <button type="button" class="text-black bg-none border border-black hover:bg-blue-500 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center shadow-md">Sign In</button>
-            <Button type="button" class="text-white border border-blue-700 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center mx-2">Get started</Button>
+            <router-link to="/login" ><button type="button" class="text-black bg-none border border-black hover:bg-blue-500 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center shadow-md">Sign In</button></router-link>
+            <router-link to="/signup"><Button type="button" class="text-white border border-blue-700 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 text-center mx-2">Get Started</Button></router-link>
         </div>
         </div>
     </nav>
