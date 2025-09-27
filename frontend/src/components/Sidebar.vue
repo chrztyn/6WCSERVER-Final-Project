@@ -4,11 +4,13 @@ export default {
     inject: ['openGroupList'],
     data() {
         return {
-            activeNav: 'dashboard' // Default to dashboard
+            activeNav: 'dashboard', // Default to dashboard
+            user: null // Store user data
         };
     },
     created() {
         this.updateActiveNav();
+        this.loadUserData();
     },
     watch: {
         '$route'() {
@@ -16,6 +18,38 @@ export default {
         }
     },
     methods: {
+        async loadUserData() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('No token found');
+                    return;
+                }
+
+                const response = await fetch('http://localhost:3001/api/users/profile', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    this.user = userData; // Your endpoint returns the user object directly
+                    console.log('User data loaded:', userData);
+                } else {
+                    console.error('Failed to fetch user data');
+                    // If token is invalid, redirect to login
+                    if (response.status === 401 || response.status === 403) {
+                        this.handleLogout();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                this.user = null;
+            }
+        },
         updateActiveNav() {
             const currentPath = this.$route.path;
             if (currentPath.startsWith('/group/')) {
@@ -45,6 +79,14 @@ export default {
         },
         resetActiveState() {
             this.activeNav = 'dashboard'; // Reset to default
+        },
+        handleLogout() {
+            // Clear localStorage
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            
+            // Redirect to landing page
+            this.$router.push('/landing');
         }
     }
 };
@@ -54,10 +96,14 @@ export default {
     <aside class="w-64 bg-white border-r border-gray-200 p-6 sticky top-0 h-screen shadow-sm">
         <!-- placeholder for pfp -->
         <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-[#0761FE] to-[#013DC0] flex items-center justify-center">
+            <!-- Display first letter of user's name if available -->
+            <span v-if="user && user.name" class="text-white text-2xl font-bold">
+                {{ user.name.charAt(0).toUpperCase() }}
+            </span>
         </div>
-        <!-- placeholder for name -->
+        <!-- Display user name or fallback -->
         <div class="text-center font-semibold text-[#013DC0] mb-8 text-lg">
-            Micah Lapuz
+            {{ user && user.name ? user.name : 'Loading...' }}
         </div> 
         <nav class="grid gap-3">
             <router-link 
@@ -97,10 +143,13 @@ export default {
             </router-link>
         </nav>
         <div class="absolute left-6 right-6 bottom-6">
-            <a class="flex items-center gap-3 rounded-lg px-4 py-3 text-red-600 hover:bg-red-50 transition-all font-medium" href="#" >
+            <button 
+                class="flex items-center gap-3 rounded-lg px-4 py-3 text-red-600 hover:bg-red-50 transition-all font-medium w-full" 
+                @click="handleLogout"
+            >
                 <img src="/Icons/blue logout.png" alt="Logout Icon" class="w-5 h-5"> 
                 Logout
-            </a>
+            </button>
         </div>
     </aside>
 </template>
