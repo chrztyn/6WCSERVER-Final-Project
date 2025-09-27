@@ -86,4 +86,29 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
   }
 });
 
+//DELETE expense
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const expenseId = req.params.id;
+
+    const expense = await Expense.findById(expenseId).populate('group');
+    if (!expense) return res.status(404).json({ msg: 'Expense not found' });
+
+    
+    const group = await Groups.findById(expense.group._id);
+    if (!group) return res.status(404).json({ msg: 'Group not found' });
+
+    const isMember = group.members.map(m => m.toString()).includes(req.user._id.toString());
+    if (!isMember) {
+      return res.status(403).json({ msg: 'You are not authorized to delete this expense' });
+    }
+
+    await Expense.findByIdAndDelete(expenseId);
+
+    res.json({ msg: 'Expense deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;
