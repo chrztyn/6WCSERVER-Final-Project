@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+    // "target" and "module" are not strictly necessary for simple path mapping
+    // but you might want to add them for better language service support 
+    // depending on your environment (e.g., Node.js or browser).
+  },
+  // "include" or "exclude" can be added here if you need to 
+  // explicitly define which files are part of your project.
+  "exclude": ["node_modules", "dist"] 
+}
