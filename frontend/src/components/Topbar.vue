@@ -5,7 +5,7 @@ export default{
 </script>
 
 <template>
-    <div class="flex items-center gap-4 p-6 max-w-[1400px] mx-auto bg-white border-b border-gray-200 shadow-sm">
+    <div class="flex items-center gap-4 p-6 w-full mx-auto bg-white border-b border-gray-200 shadow-sm">
         <div class="text-xl font-bold text-[#0761FE] tracking-tight">SplitSmart</div>
         <div class="flex-1 relative">
             <input 

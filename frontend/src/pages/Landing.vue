@@ -71,7 +71,7 @@ defineOptions({
           <!-- Right Side: Enhanced GIF Container -->
           <div class="flex justify-center items-center flex-1 max-w-2xl -mt-32">
             <div class="relative">
-              <img src="/public/bg.gif" alt="Hero GIF" />
+              <img src="/bg.gif" alt="Hero GIF" />
             </div>
           </div>
         </div>
