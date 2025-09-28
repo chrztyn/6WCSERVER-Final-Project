@@ -4,11 +4,20 @@ export default {
     inject: ['openGroupList'],
     data() {
         return {
-            activeNav: 'dashboard' // Default to dashboard
+            activeNav: 'dashboard', // Default to dashboard
+            user: {
+                name: '',
+                email: '',
+                phone: '',
+                password: '',
+                profilePicture: null
+            }
         };
     },
     created() {
         this.updateActiveNav();
+        this.loadUserData();
+        this.setupProfilePictureListener();
     },
     watch: {
         '$route'() {
@@ -45,6 +54,41 @@ export default {
         },
         resetActiveState() {
             this.activeNav = 'dashboard'; // Reset to default
+        },
+        loadUserData() {
+            // Load user data from localStorage
+            const userData = localStorage.getItem('user');
+            if (userData) {
+                try {
+                    const parsedUser = JSON.parse(userData);
+                    this.user = {
+                        name: parsedUser.name || parsedUser.firstName + ' ' + parsedUser.lastName || '',
+                        email: parsedUser.email || '',
+                        phone: parsedUser.phone || '',
+                        password: '', // Don't load password for security
+                        profilePicture: parsedUser.profilePicture || null
+                    };
+                } catch (error) {
+                    console.error('Error parsing user data:', error);
+                }
+            }
+        },
+        setupProfilePictureListener() {
+            // Listen for profile picture updates from Profile page
+            window.addEventListener('profilePictureUpdated', (event) => {
+                this.user.profilePicture = event.detail.profilePicture;
+                // Update localStorage
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    try {
+                        const parsedUser = JSON.parse(userData);
+                        parsedUser.profilePicture = event.detail.profilePicture;
+                        localStorage.setItem('user', JSON.stringify(parsedUser));
+                    } catch (error) {
+                        console.error('Error updating user data:', error);
+                    }
+                }
+            });
         }
     }
 };
@@ -52,12 +96,21 @@ export default {
 
 <template>
     <aside class="w-64 bg-white border-r border-gray-200 p-6 sticky top-0 h-screen shadow-sm">
-        <!-- placeholder for pfp -->
-        <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-[#0761FE] to-[#013DC0] flex items-center justify-center">
+        <!-- Profile Picture -->
+        <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-[#0761FE] to-[#013DC0] flex items-center justify-center overflow-hidden border-2 border-white shadow-lg">
+            <img 
+                v-if="user.profilePicture"
+                :src="user.profilePicture"
+                alt="Profile Picture"
+                class="w-full h-full object-cover"
+            >
+            <span v-else class="text-white font-semibold text-xl">
+                {{ user.name.charAt(0) || 'M' }}
+            </span>
         </div>
-        <!-- placeholder for name -->
+        <!-- User Name -->
         <div class="text-center font-semibold text-[#013DC0] mb-8 text-lg">
-            Micah Lapuz
+            {{ user.name || 'Micah Lapuz' }}
         </div> 
         <nav class="grid gap-3">
             <router-link 

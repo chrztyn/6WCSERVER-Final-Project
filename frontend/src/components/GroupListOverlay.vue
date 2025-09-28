@@ -87,7 +87,7 @@ export default {
           
           <!-- Add Group Button -->
           <button class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors mb-4 flex items-center justify-center gap-2">
-          <img src="/Icons/light add.png" alt="Dashboard Icon" class="w-5 h-5"> 
+            <img src="/Icons/light add.png" alt="Dashboard Icon" class="w-5 h-5"> 
             Add New Group
           </button>
         </div>
