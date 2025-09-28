@@ -2,25 +2,39 @@ const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
   expense_id: { 
-    type: mongoose.Schema.Types.ObjectId, ref: 'Expense' 
-},
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Expense',
+    required: false
+  },
+  group_id: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Group',
+    required: true
+  },
   payer_id: { 
-    type: mongoose.Schema.Types.ObjectId, ref: 'User' 
-},
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  },
+  creditor_id: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User',
+    required: true
+  },
   amount: { 
     type: Number, 
     required: true 
-},
+  },
   payment_method: {
     type: String,
     enum: ['Cash','GCash','Bank'],
     required: true
-},
+  },
   confirmation_code: String,
   payment_status: { 
     type: String, 
     enum: ['pending', 'confirmed', 'failed'], 
-    default: 'pending' }
+    default: 'pending' 
+  }
 });
 
 paymentSchema.pre('save', function(next) {

@@ -1,12 +1,14 @@
 <script>
 import GroupItem from './GroupItem.vue';
 import CreateGroupForm from './CreateGroupForm.vue';
+import ConfirmCardOverlay from '../components/ConfirmCardOverlay.vue';
 
 export default {
   name: "GroupListOverlay",
   components: {
     GroupItem,
-    CreateGroupForm
+    CreateGroupForm,
+    ConfirmCardOverlay
   },
   props: {
     isOpen: {
@@ -21,7 +23,9 @@ export default {
       groups: [],
       loading: false,
       error: null,
-      showCreateForm: false
+      showCreateForm: false,
+      showConfirmOverlay: false,
+      groupToLeaveId: null
     };
   },
 
@@ -112,13 +116,16 @@ export default {
       console.log('New group added to list:', formattedGroup);
     },
 
-    async leaveGroup(groupId) {
-      if (!confirm('Are you sure you want to leave this group?')) {
-        return;
-      }
+    showConfirmLeave(groupId) {
+      this.groupToLeaveId = groupId;
+      this.showConfirmOverlay = true;
+    },
 
+    async confirmLeave() {
       try {
+        const groupId = this.groupToLeaveId;
         const token = localStorage.getItem('token');
+        
         const response = await fetch(`http://localhost:3001/api/groups/${groupId}/leave`, {
           method: 'DELETE',
           headers: {
@@ -131,16 +138,20 @@ export default {
           throw new Error('Failed to leave group');
         }
 
-        // Remove group from local list
         this.groups = this.groups.filter(group => group.id !== groupId);
-        
-        // Show success message (you might want to use a toast notification)
         console.log('Successfully left the group');
-        
+
       } catch (error) {
         console.error('Error leaving group:', error);
         alert('Failed to leave group. Please try again.');
+      } finally {
+        this.closeConfirmOverlay();
       }
+    },
+
+    closeConfirmOverlay() {
+      this.showConfirmOverlay = false;
+      this.groupToLeaveId = null;
     },
 
     closeOverlay() {
@@ -150,6 +161,10 @@ export default {
     selectGroup(group) {
       this.$emit('select-group', group);
       this.closeOverlay();
+    },
+
+    leaveGroup(groupId) {
+      this.showConfirmLeave(groupId);
     }
   }
 };
@@ -224,13 +239,38 @@ export default {
         <!-- Groups List -->
         <div v-else class="flex-1 overflow-y-auto">
           <div v-if="groups.length > 0" class="space-y-3">
-            <GroupItem 
+            <!-- Individual Group Items -->
+            <div 
               v-for="group in groups" 
               :key="group.id"
-              :group="group"
-              @select-group="selectGroup"
-              @leave-group="leaveGroup"
-            />
+              class="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <div class="flex items-start justify-between">
+                <div class="flex-1 min-w-0" @click="selectGroup(group)">
+                  <h4 class="text-sm font-semibold text-gray-900 truncate">{{ group.name }}</h4>
+                  <p class="text-xs text-gray-500 mt-1 truncate">{{ group.description }}</p>
+                  <div class="flex items-center mt-2 text-xs text-gray-400">
+                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    {{ group.members?.length || 0 }} members
+                  </div>
+                </div>
+                
+                <!-- Leave Group Button -->
+                <div class="ml-3 flex-shrink-0">
+                  <button 
+                    @click.stop="leaveGroup(group.id)"
+                    class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Leave Group"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Empty State -->
@@ -259,6 +299,18 @@ export default {
       @close="closeCreateForm"
       @group-created="onGroupCreated"
       class="z-10"
+    />
+
+    <!-- Confirmation Overlay -->
+    <ConfirmCardOverlay
+      :isOpen="showConfirmOverlay"
+      title="Leave Group"
+      message="Are you sure you want to leave this group? You won't be able to see group expenses or activities anymore."
+      confirmText="Leave Group"
+      cancelText="Cancel"
+      confirmButtonClass="bg-red-500 hover:bg-red-600 text-white"
+      @confirm="confirmLeave"
+      @cancel="closeConfirmOverlay"
     />
   </div>
 </template>

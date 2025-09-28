@@ -2,54 +2,66 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import CreateGroupForm from '../CreateGroupForm.vue';
+import SettleDebtOverlay from '../SettleDebtOverlay.vue';
+
 export default {
     name: "QuickAccess",
-    components: { Card, Button, CreateGroupForm },
+    components: { 
+        Card, 
+        Button, 
+        CreateGroupForm,
+        SettleDebtOverlay 
+    },
     props: {
-    isOpen: {
-      type: Boolean,
-      default: false
+        isOpen: {
+            type: Boolean,
+            default: false
         }
     },  
     emits: ['close'],
 
     data() {
         return {
-        showCreateForm: false
+            showCreateForm: false,
+            showSettleDebtOverlay: false
         };
     },
 
     methods: {
+        async createGroup() {
+            this.showCreateForm = true;
+        },
 
-    async createGroup() {
-      // Open the create group form
-      this.showCreateForm = true;
-    },
+        closeCreateForm() {
+            this.showCreateForm = false;
+        },
 
-    closeCreateForm() {
-      this.showCreateForm = false;
-    },
+        onGroupCreated(newGroup) {
+            const formattedGroup = {
+                id: newGroup._id,
+                name: newGroup.name,
+                description: newGroup.description || 'No description',
+                created_by: newGroup.created_by,
+                members: newGroup.members,
+                created_at: newGroup.created_at
+            };
+            
+            this.showCreateForm = false;
+            console.log('New group added to list:', formattedGroup);
+        },
 
-    onGroupCreated(newGroup) {
-      // Add the new group to the list
-      const formattedGroup = {
-        id: newGroup._id,
-        name: newGroup.name,
-        description: newGroup.description || 'No description',
-        created_by: newGroup.created_by,
-        members: newGroup.members,
-        created_at: newGroup.created_at
-      };
-      
-      this.showCreateForm = false;
-      
-      console.log('New group added to list:', formattedGroup);
-    },
+        openSettleDebtOverlay() {
+            this.showSettleDebtOverlay = true;
+        },
 
-    closeOverlay() {
-      this.$emit('close');
-    },
-  }
+        closeSettleDebtOverlay() {
+            this.showSettleDebtOverlay = false;
+        },
+
+        closeOverlay() {
+            this.$emit('close');
+        },
+    }
 };
 </script>
 
@@ -63,22 +75,34 @@ export default {
         </div>
         <div class="grid grid-cols-2 gap-4">
             <button 
-            @click="createGroup"
-            class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <img src="/Icons/light add.png" alt="Add Icon" class="w-5 h-5"> 
-            New Group
-          </button>
-            <button class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2">
-                <img src="/Icons/light debt.png" alt="Dashboard Icon" class="w-5 h-5"> 
+                @click="createGroup"
+                class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+            >
+                <img src="/Icons/light add.png" alt="Add Icon" class="w-5 h-5"> 
+                New Group
+            </button>
+            <button 
+                @click="openSettleDebtOverlay"
+                class="w-full bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+            >
+                <img src="/Icons/light debt.png" alt="Settle Debt Icon" class="w-5 h-5"> 
                 Settle Debt
             </button>
         </div>
-            <CreateGroupForm 
+        
+        <!-- Create Group Form -->
+        <CreateGroupForm 
             :isOpen="showCreateForm"
             @close="closeCreateForm"
             @group-created="onGroupCreated"
             class="z-10"
-            />
+        />
+
+        <!-- Settle Debt Overlay -->
+        <SettleDebtOverlay
+            :isOpen="showSettleDebtOverlay"
+            @close="closeSettleDebtOverlay"
+            class="z-10"
+        />
     </Card>
 </template>

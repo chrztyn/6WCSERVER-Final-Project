@@ -3,9 +3,67 @@ const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const Groups = require('../models/groups');
 const Expense = require('../models/expense');
+const Balance = require('../models/balance');
 const { updateBalancesAfterExpense } = require('../utils/updateBalance'); 
 
 const router = express.Router();
+
+
+const revertBalancesAfterExpenseDelete = async (groupId, memberShare, payorUsers) => {
+  try {
+    const group = await Groups.findById(groupId).populate('members');
+    
+    for (let member of group.members) {
+      const memberId = member._id.toString();
+      const memberShareAmount = memberShare[memberId];
+      
+      if (Math.abs(memberShareAmount) < 0.01) continue; 
+      
+      for (let payor of payorUsers) {
+        const payorId = payor._id.toString();
+        
+        if (memberId === payorId) continue;
+        
+        const sharePerPayor = memberShareAmount / payorUsers.length;
+        
+        if (memberShareAmount > 0) {
+          const balance = await Balance.findOne({
+            group_id: groupId,
+            user_id: memberId,
+            owed_to: payorId
+          });
+          
+          if (balance) {
+            balance.amount -= sharePerPayor;
+            if (balance.amount <= 0.01) {
+              await Balance.findByIdAndDelete(balance._id);
+            } else {
+              await balance.save();
+            }
+          }
+        } else {
+          const balance = await Balance.findOne({
+            group_id: groupId,
+            user_id: payorId,
+            owed_to: memberId
+          });
+          
+          if (balance) {
+            balance.amount += sharePerPayor;
+            if (balance.amount <= 0.01) {
+              await Balance.findByIdAndDelete(balance._id);
+            } else {
+              await balance.save();
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error reverting balances:', error);
+    throw error;
+  }
+};
 
 // ADD expense to a group
 router.post('/:groupId', authMiddleware, async (req, res) => {
@@ -87,7 +145,7 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
     const expenses = await Expense.find({ group: groupId })
       .populate('paid_by', 'name email')
       .populate('group', 'name description')
-      .sort({ date: -1 }); // Sort by newest first
+      .sort({ date: -1 });
 
     const formattedExpenses = expenses.map(expense => ({
       _id: expense._id,
@@ -116,7 +174,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const expenseId = req.params.id;
 
-    const expense = await Expense.findById(expenseId).populate('group');
+    const expense = await Expense.findById(expenseId)
+      .populate('group')
+      .populate('paid_by');
+    
     if (!expense) return res.status(404).json({ msg: 'Expense not found' });
 
     const group = await Groups.findById(expense.group._id);
@@ -127,9 +188,27 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ msg: 'You are not authorized to delete this expense' });
     }
 
+    const isPayor = expense.paid_by.some(payor => payor._id.toString() === req.user._id.toString());
+    if (!isPayor) {
+      return res.status(403).json({ msg: 'Only the payor(s) of this expense can delete it' });
+    }
+
+    const share = expense.amount / group.members.length;
+    let memberShare = {};
+    for (let member of group.members) {
+      memberShare[member.toString()] = share;
+    }
+
+    const contribution = expense.amount / expense.paid_by.length;
+    for (let payor of expense.paid_by) {
+      memberShare[payor._id.toString()] -= contribution;
+    }
+
+    await revertBalancesAfterExpenseDelete(expense.group._id, memberShare, expense.paid_by);
+
     await Expense.findByIdAndDelete(expenseId);
 
-    res.json({ msg: 'Expense deleted successfully' });
+    res.json({ msg: 'Expense deleted successfully and balances updated' });
   } catch (err) {
     console.error('Error deleting expense:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
