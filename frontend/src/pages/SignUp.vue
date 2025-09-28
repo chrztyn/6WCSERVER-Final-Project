@@ -143,8 +143,22 @@ const goToLogin = () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#EDF5FB] to-[#f8fafc] p-4 relative overflow-hidden">
+    <!-- Background Pattern -->
+        <div class="absolute inset-0 opacity-30">
+          <div
+            class="absolute inset-0"
+            style="background-image: radial-gradient(circle at 1px 1px, #0761FE 1px, transparent 0); background-size: 20px 20px;"
+          ></div>
+        </div>
+    
+    <!-- Subtle Top Gradient -->
+    <div class="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-b from-[#0761FE]/8 to-transparent"></div>
+    
+    <!-- Subtle Bottom Gradient -->
+    <div class="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-[#07CAFC]/6 to-transparent"></div>
+
+    <div class="relative z-10 max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
       <!-- Header -->
       <div class="text-center mb-8">
         <h2 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
@@ -163,7 +177,7 @@ const goToLogin = () => {
       <!-- Signup Form -->
       <form @submit.prevent="handleSignup" class="space-y-5">
         <div>
-          <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+          <label for="name" class="block text-sm font-semibold text-[#013DC0] mb-3">Full Name</label>
           <input
             id="name"
             v-model="signupForm.name"
@@ -176,7 +190,7 @@ const goToLogin = () => {
         </div>
 
         <div>
-          <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+          <label for="email" class="block text-sm font-semibold text-[#013DC0] mb-3">Email</label>
           <input
             id="email"
             v-model="signupForm.email"
@@ -189,7 +203,7 @@ const goToLogin = () => {
         </div>
 
         <div>
-          <label for="phone" class="block text-sm font-medium text-gray-700 mb-2">Phone Number <span class="text-gray-400">(Optional)</span></label>
+          <label for="phone" class="block text-sm font-semibold text-[#013DC0] mb-3">Phone Number <span class="text-gray-400">(Optional)</span></label>
           <input
             id="phone"
             v-model="signupForm.phone_number"
@@ -200,7 +214,7 @@ const goToLogin = () => {
         </div>
 
         <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+          <label for="password" class="block text-sm font-semibold text-[#013DC0] mb-3">Password</label>
           <input
             id="password"
             v-model="signupForm.password"
@@ -213,7 +227,7 @@ const goToLogin = () => {
         </div>
 
         <div>
-          <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+          <label for="confirmPassword" class="block text-sm font-semibold text-[#013DC0] mb-3">Confirm Password</label>
           <input
             id="confirmPassword"
             v-model="signupForm.confirmPassword"
@@ -228,18 +242,11 @@ const goToLogin = () => {
         <button
           type="submit"
           :disabled="isLoading"
-          class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 px-4 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
+          class="w-full bg-gradient-to-r from-[#0761FE] to-[#013DC0] hover:from-[#013DC0] hover:to-[#0761FE] disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-[#0761FE] focus:ring-offset-2 shadow-lg hover:shadow-xl">
+
           {{ isLoading ? 'Creating Account...' : 'Create Account' }}
         </button>
       </form>
-
-      <!-- Terms and Privacy -->
-      <p class="mt-4 text-xs text-gray-500 text-center">
-        By creating an account, you agree to our 
-        <a href="#" class="text-indigo-600 hover:text-indigo-700">Terms of Service</a> and 
-        <a href="#" class="text-indigo-600 hover:text-indigo-700">Privacy Policy</a>
-      </p>
 
       <!-- Divider -->
       <div class="mt-8 relative">
@@ -255,7 +262,7 @@ const goToLogin = () => {
       <div class="mt-6 text-center">
         <router-link to="/login" >
         <button
-          class="text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+          class="text-[#0761FE] hover:text-[#013DC0] font-bold transition-colors text-lg"
         >
           Sign in to your account
         </button></router-link>
