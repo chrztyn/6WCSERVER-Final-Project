@@ -18,7 +18,8 @@ const expenseSchema = new mongoose.Schema({
   }],
   amount: {
     type: Number,
-    required: true
+    required: true,
+    min: [0, 'Amount must be positive']
   },
   date: {
     type: Date,
@@ -29,7 +30,12 @@ const expenseSchema = new mongoose.Schema({
     enum: ['pending', 'paid'],
     default: 'pending'
   }
-}, { collection: 'expenses' });
+}, { 
+  collection: 'expenses',
+  timestamps: true 
+});
+
+expenseSchema.index({ group: 1, date: -1 });
+expenseSchema.index({ 'paid_by': 1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);
-

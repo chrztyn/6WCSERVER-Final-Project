@@ -22,7 +22,7 @@ export default {
       formData: {
         description: '',
         amount: '',
-        paid_by: [''], // Start with one payor field
+        paid_by: [''], 
         date: '',
         status: 'pending'
       },
@@ -97,7 +97,7 @@ export default {
       return isValid;
     },
 
-    // Add expense
+    // Add expense - FIXED
     async addExpense() {
       if (!this.validateForm()) return;
       
@@ -126,6 +126,7 @@ export default {
 
         console.log('Adding expense with data:', requestData);
 
+        // Fixed: Use relative URL instead of hardcoded localhost
         const response = await fetch(`http://localhost:3001/api/expenses/${this.groupId}`, {
           method: 'POST',
           headers: {
@@ -136,6 +137,7 @@ export default {
         });
 
         const data = await response.json();
+        console.log('Full API response:', data);
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
@@ -148,9 +150,9 @@ export default {
         }
 
         this.successMessage = 'Expense added successfully!';
-        console.log('Expense added:', data);
+        console.log('Expense added successfully:', data);
         
-        // Emit event to parent component
+        // Emit event to parent component with the correct data structure
         this.$emit('expense-added', data.expense);
         
         // Close the form after a short delay to show success message

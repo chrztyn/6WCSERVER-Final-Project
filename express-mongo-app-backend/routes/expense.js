@@ -33,7 +33,6 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
       });
     }
 
-
     const expense = new Expense({
       group: groupId,
       paid_by: payorUsers.map(u => u._id),
@@ -58,8 +57,8 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
     await updateBalancesAfterExpense(groupId, memberShare, payorUsers);
 
     const populatedExpense = await expense.populate([
-      { path: 'paid_by', select: 'name email -_id' },
-      { path: 'group', select: 'name description -_id' }
+      { path: 'paid_by', select: 'name email' },
+      { path: 'group', select: 'name description' }
     ]);
 
     res.status(201).json({
@@ -67,11 +66,12 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
       expense: populatedExpense
     });
   } catch (err) {
+    console.error('Error adding expense:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
 
-// VIEW expenses
+// VIEW expenses 
 router.get('/:groupId', authMiddleware, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -79,13 +79,20 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
     const group = await Groups.findById(groupId);
     if (!group) return res.status(404).json({ msg: 'Group not found' });
 
+    const isMember = group.members.map(m => m.toString()).includes(req.user._id.toString());
+    if (!isMember) {
+      return res.status(403).json({ msg: 'You are not authorized to view this group\'s expenses' });
+    }
+
     const expenses = await Expense.find({ group: groupId })
-      .populate('paid_by', 'name email', '-_id')
-      .populate('group', 'name description','-_id');
+      .populate('paid_by', 'name email')
+      .populate('group', 'name description')
+      .sort({ date: -1 }); // Sort by newest first
 
     const formattedExpenses = expenses.map(expense => ({
+      _id: expense._id,
       description: expense.description,
-      payor: expense.paid_by.map(user => ({ name: user.name, email: user.email })), 
+      payor: expense.paid_by,
       amount: expense.amount,
       date: expense.date,
       status: expense.status
@@ -99,6 +106,7 @@ router.get('/:groupId', authMiddleware, async (req, res) => {
       expenses: formattedExpenses
     });
   } catch (err) {
+    console.error('Error fetching expenses:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });
@@ -111,7 +119,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     const expense = await Expense.findById(expenseId).populate('group');
     if (!expense) return res.status(404).json({ msg: 'Expense not found' });
 
-    
     const group = await Groups.findById(expense.group._id);
     if (!group) return res.status(404).json({ msg: 'Group not found' });
 
@@ -124,6 +131,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
     res.json({ msg: 'Expense deleted successfully' });
   } catch (err) {
+    console.error('Error deleting expense:', err);
     res.status(500).json({ msg: 'Server error', error: err.message });
   }
 });

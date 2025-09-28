@@ -60,6 +60,7 @@ export default {
         }
 
         const data = await response.json();
+        console.log('Raw API response:', data);
         
         this.group = {
           id: groupId,
@@ -67,11 +68,12 @@ export default {
           description: data.group.description
         };
         
-        // Format expenses to match your template expectations
         this.expenses = data.expenses.map((expense, index) => ({
-          id: index + 1, // Since your backend doesn't return expense ID
+          id: expense._id || index + 1,
           details: expense.description,
-          payor: expense.payor.map(p => p.name).join(', '), // Join multiple payors
+          payor: Array.isArray(expense.payor) 
+            ? expense.payor.map(p => p.name).join(', ')
+            : expense.payor,
           amount: expense.amount,
           date: new Date(expense.date).toLocaleDateString(),
           status: expense.status === 'paid' ? 'all paid' : 'pending'
@@ -105,11 +107,14 @@ export default {
     },
 
     onExpenseAdded(newExpense) {
-      // Add the new expense to the list
+      console.log('New expense received:', newExpense);
+      
       const formattedExpense = {
-        id: this.expenses.length + 1,
+        id: newExpense._id || this.expenses.length + 1,
         details: newExpense.description,
-        payor: newExpense.paid_by.map(p => p.name).join(', '),
+        payor: Array.isArray(newExpense.paid_by) 
+          ? newExpense.paid_by.map(p => p.name).join(', ')
+          : 'Unknown', // Fallback if payor data is missing
         amount: newExpense.amount,
         date: new Date(newExpense.date).toLocaleDateString(),
         status: newExpense.status === 'paid' ? 'all paid' : 'pending'
@@ -118,11 +123,10 @@ export default {
       this.expenses.unshift(formattedExpense); // Add to beginning
       this.showAddExpenseForm = false;
       
-      console.log('New expense added:', formattedExpense);
+      console.log('New expense added to list:', formattedExpense);
     },
 
     onMemberAdded() {
-      // Refresh the group data to get updated member list
       this.loadGroupData();
       this.showAddMemberForm = false;
     },
@@ -132,18 +136,19 @@ export default {
         case 'all paid':
           return 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium';
         case 'pending':
-          return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium';
+          return 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium';
         default:
           return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium';
       }
     },
     
     formatAmount(amount) {
-      return `PHP ${amount.toFixed(2)}`;
+      return `PHP ${parseFloat(amount).toFixed(2)}`;
     }
   }
 };
 </script>
+
 <template>
   <div class="min-h-screen bg-white">
     <!-- Group Header -->

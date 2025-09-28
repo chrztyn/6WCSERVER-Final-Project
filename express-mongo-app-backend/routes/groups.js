@@ -3,6 +3,7 @@ const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const Groups = require('../models/groups');
 const router = express.Router();
+const Expense = require('../models/expense');
 
 //  CREATE a group 
 router.post('/', authMiddleware, async (req, res) => {
@@ -150,6 +151,64 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
     }
 });
 
+// GET single group by ID
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const group = await Groups.findById(req.params.id)
+      .populate([
+        { path: 'members', select: 'name email -_id' },
+        { path: 'created_by', select: 'name email -_id' }
+      ]);
 
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Check if user is a member of this group
+    const isMember = group.members.some(member => 
+      member._id.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied. You are not a member of this group.' });
+    }
+
+    res.json(group);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET groups with expense summary
+router.get('/my/summary', authMiddleware, async (req, res) => {
+  try {
+    const groups = await Groups.find({ members: req.user._id })
+      .populate([
+        { path: 'members', select: 'name email -_id' },
+        { path: 'created_by', select: 'name email -_id' }
+      ]);
+
+    const groupsWithSummary = await Promise.all(
+      groups.map(async (group) => {
+        const totalExpensesResult = await Expense.aggregate([
+          { $match: { group: group._id } },
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]);
+        
+        // Check if a result was returned and extract the total
+        const total = totalExpensesResult.length > 0 ? totalExpensesResult[0].total : 0;
+        
+        return {
+          ...group.toObject(),
+          totalExpenses: total
+        };
+      })
+    );
+
+    res.json(groupsWithSummary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
