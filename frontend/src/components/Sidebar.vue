@@ -5,12 +5,19 @@ export default {
     data() {
         return {
             activeNav: 'dashboard', // Default to dashboard
-            user: null // Store user data
+            user: {
+                name: '',
+                email: '',
+                phone: '',
+                password: '',
+                profilePicture: null
+            }
         };
     },
     created() {
         this.updateActiveNav();
         this.loadUserData();
+        this.setupProfilePictureListener();
     },
     watch: {
         '$route'() {
@@ -87,6 +94,41 @@ export default {
             
             // Redirect to landing page
             this.$router.push('/landing');
+        },
+        loadUserData() {
+            // Load user data from localStorage
+            const userData = localStorage.getItem('user');
+            if (userData) {
+                try {
+                    const parsedUser = JSON.parse(userData);
+                    this.user = {
+                        name: parsedUser.name || parsedUser.firstName + ' ' + parsedUser.lastName || '',
+                        email: parsedUser.email || '',
+                        phone: parsedUser.phone || '',
+                        password: '', // Don't load password for security
+                        profilePicture: parsedUser.profilePicture || null
+                    };
+                } catch (error) {
+                    console.error('Error parsing user data:', error);
+                }
+            }
+        },
+        setupProfilePictureListener() {
+            // Listen for profile picture updates from Profile page
+            window.addEventListener('profilePictureUpdated', (event) => {
+                this.user.profilePicture = event.detail.profilePicture;
+                // Update localStorage
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    try {
+                        const parsedUser = JSON.parse(userData);
+                        parsedUser.profilePicture = event.detail.profilePicture;
+                        localStorage.setItem('user', JSON.stringify(parsedUser));
+                    } catch (error) {
+                        console.error('Error updating user data:', error);
+                    }
+                }
+            });
         }
     }
 };
@@ -94,14 +136,19 @@ export default {
 
 <template>
     <aside class="w-64 bg-white border-r border-gray-200 p-6 sticky top-0 h-screen shadow-sm">
-        <!-- placeholder for pfp -->
-        <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-[#0761FE] to-[#013DC0] flex items-center justify-center">
-            <!-- Display first letter of user's name if available -->
-            <span v-if="user && user.name" class="text-white text-2xl font-bold">
+        <!-- Profile Picture -->
+        <div class="mx-auto mb-4 h-20 w-20 rounded-full bg-gradient-to-br from-[#0761FE] to-[#013DC0] flex items-center justify-center overflow-hidden border-2 border-white shadow-lg">
+            <img 
+                v-if="user.profilePicture"
+                :src="user.profilePicture"
+                alt="Profile Picture"
+                class="w-full h-full object-cover"
+            >
+            <span v-else class="text-white font-semibold text-xl">
                 {{ user.name.charAt(0).toUpperCase() }}
             </span>
         </div>
-        <!-- Display user name or fallback -->
+        <!-- User Name -->
         <div class="text-center font-semibold text-[#013DC0] mb-8 text-lg">
             {{ user && user.name ? user.name : 'Loading...' }}
         </div> 

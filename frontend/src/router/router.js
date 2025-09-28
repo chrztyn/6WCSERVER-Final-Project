@@ -11,6 +11,7 @@ import Dashboard from '../pages/Dashboard.vue';
 import Group from '../pages/Group.vue';
 import GroupExpenseList from '../pages/GroupExpenseList.vue';
 import Reports from '../pages/Reports.vue';
+import Profile from '../pages/Profile.vue';
 
 // Function to check if user is authenticated
 const isAuthenticated = () => {
@@ -65,8 +66,7 @@ const router = createRouter({
         { path: 'group', name: 'Group', component: Group },
         { path: 'group/:id', name: 'GroupExpenseList', component: GroupExpenseList },
         { path: 'reports', name: 'Reports', component: Reports },
-        // Add the missing profile route if needed
-        // { path: 'profile', name: 'Profile', component: Profile },
+        { path: 'profile', name: 'Profile', component: Profile },
       ],
     },
     // Catch-all route - redirect any unknown routes

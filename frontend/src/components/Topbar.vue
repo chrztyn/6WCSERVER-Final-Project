@@ -6,7 +6,7 @@ export default{
 
 <template>
     <div class="flex items-center gap-4 p-6 max-w-[1400px] mx-auto bg-white border-b border-gray-200 shadow-sm">
-        <div class="font-bold text-2xl text-[#013DC0] tracking-tight">SplitSmart</div>
+        <div class="text-xl font-bold text-[#013DC0] tracking-tight">SplitSmart</div>
         <div class="flex-1 relative">
             <input 
                 class="w-full h-10 rounded-lg border border-gray-300 px-4 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-[#0761FE] focus:border-transparent transition-all" 
