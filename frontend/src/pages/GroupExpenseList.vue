@@ -2,12 +2,14 @@
 // GroupExpenseList.vue
 import AddExpenseForm from './AddExpenseForm.vue';
 import AddMemberForm from './AddMemberForm.vue';
+import ConfirmCardOverlay from '../components/ConfirmCardOverlay.vue';
 
 export default {
   name: "GroupExpenseList",
   components: {
     AddExpenseForm,
-    AddMemberForm
+    AddMemberForm,
+    ConfirmCardOverlay
   },
   data() {
     return {
@@ -16,7 +18,9 @@ export default {
       loading: false,
       error: null,
       showAddExpenseForm: false,
-      showAddMemberForm: false
+      showAddMemberForm: false,
+      showConfirmOverlay: false,
+      expenseToDeleteId: null
     };
   },
   created() {
@@ -141,6 +145,44 @@ export default {
           return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium';
       }
     },
+
+    showConfirmDelete(expenseId) {
+        this.expenseToDeleteId = expenseId;
+        this.showConfirmOverlay = true;
+    },
+
+    async confirmDelete() {
+      try {
+          const expenseId = this.expenseToDeleteId;
+          const token = localStorage.getItem('token');
+          
+          const response = await fetch(`http://localhost:3001/api/expenses/${expenseId}`, {
+              method: 'DELETE',
+              headers: {
+                  'Authorization': `Bearer ${token}`
+              }
+          });
+
+          if (!response.ok) {
+              throw new Error('Failed to delete expense');
+          }
+
+          // Remove the deleted expense from the local list
+          this.expenses = this.expenses.filter(expense => expense.id !== expenseId);
+          console.log('Expense deleted successfully');
+
+      } catch (error) {
+          console.error('Error deleting expense:', error);
+          alert('Failed to delete expense. Please try again.');
+      } finally {
+          this.closeConfirmOverlay();
+      }
+    },
+
+    closeConfirmOverlay() {
+        this.showConfirmOverlay = false;
+        this.expenseToDeleteId = null;
+    },
     
     formatAmount(amount) {
       return `PHP ${parseFloat(amount).toFixed(2)}`;
@@ -218,6 +260,7 @@ export default {
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">AMOUNT</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DATE</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">STATUS</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
@@ -242,6 +285,17 @@ export default {
                 <span :class="getStatusClass(expense.status)">
                   {{ expense.status }}
                 </span>
+              </td>
+              <td class="px-6 py-4 text-right">
+                <button 
+                  @click="showConfirmDelete(expense.id)"
+                  class="text-red-500 hover:text-red-700 transition-colors"
+                  aria-label="Delete expense"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -280,6 +334,13 @@ export default {
       :groupId="$route.params.id"
       @close="closeAddMemberForm"
       @member-added="onMemberAdded"
+    />
+    <ConfirmCardOverlay
+        :isOpen="showConfirmOverlay"
+        title="Delete Expense"
+        message="Are you sure you want to permanently delete this expense? This action cannot be undone."
+        @confirm="confirmDelete"
+        @cancel="closeConfirmOverlay"
     />
   </div>
 </template>

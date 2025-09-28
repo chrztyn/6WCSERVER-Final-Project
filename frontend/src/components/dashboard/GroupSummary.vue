@@ -52,7 +52,6 @@ export default {
                         const expenses = expenseResponse.data.expenses || [];
                         const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
                         
-                        // Vue 3 way - direct assignment works
                         group.totalExpenses = totalExpenses;
                         
                     } catch (expenseError) {
