@@ -27,6 +27,19 @@ router.post('/', authMiddleware, async (req, res) => {
     });
 
     const savedGroup = await group.save(); 
+
+    // Update each user's joined_groups array with the new structure
+    await Users.updateMany(
+      { _id: { $in: memberIds } },
+      { $addToSet: { 
+          joined_groups: {
+            group_id: savedGroup._id,
+            group_name: savedGroup.name,
+            joined_at: new Date()
+          }
+        }}
+    );
+
     const populatedGroup = await savedGroup.populate([
       { path: 'created_by', select: 'name email -_id' },
       { path: 'members', select: 'name email -_id' }
@@ -59,13 +72,15 @@ router.delete('/:id/leave', authMiddleware, async (req, res) => {
     const group = await Groups.findById(req.params.id);
     if (!group) return res.status(404).json({msg: 'Group not found'});
 
+    // Remove user from group's members array
     group.members = group.members.filter(
-      (memberId) => memberId.toString() !== req.user._id
+      (memberId) => memberId.toString() !== req.user._id.toString()
     );
     await group.save();
 
-        await Users.findByIdAndUpdate(req.user._id, {
-      $pull: { joined_groups: group._id }
+    // Remove group from user's joined_groups array by group_id
+    await Users.findByIdAndUpdate(req.user._id, {
+      $pull: { joined_groups: { group_id: group._id } }
     });
 
     res.json({ message: 'Left group successfully' });
@@ -73,5 +88,68 @@ router.delete('/:id/leave', authMiddleware, async (req, res) => {
     res.status(500).send('Server error: ' + err.message);
   }
 });
+
+// ADD MEMBER
+
+router.post('/:id/add-members', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { members } = req.body;
+
+        const group = await Groups.findById(id);
+        if (!group) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+
+        // Find the users to be added from the provided emails
+        const usersToAdd = await Users.find({ email: { $in: members } });
+        const newMemberIds = usersToAdd.map(u => u._id.toString());
+        const existingMemberIds = group.members.map(m => m.toString());
+
+        const addedMemberIds = [];
+        const notFoundEmails = [];
+
+        // Add valid, new users to the group
+        for (const user of usersToAdd) {
+            if (!existingMemberIds.includes(user._id.toString())) {
+                group.members.push(user._id);
+                addedMemberIds.push(user._id);
+            }
+        }
+
+        // Update each added user's joined_groups array
+        if (addedMemberIds.length > 0) {
+            await Users.updateMany(
+                { _id: { $in: addedMemberIds } },
+                {
+                    $addToSet: {
+                        joined_groups: {
+                            group_id: group._id,
+                            group_name: group.name,
+                            joined_at: new Date()
+                        }
+                    }
+                }
+            );
+        }
+
+        // Save the updated group document
+        await group.save();
+
+        const addedUsers = await Users.find({ _id: { $in: addedMemberIds } }).select('name email');
+        
+        res.status(200).json({
+            message: 'Members added successfully',
+            addedUsers: addedUsers,
+            membersNotFound: notFoundEmails
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error: ' + err.message });
+    }
+});
+
+
 
 module.exports = router;

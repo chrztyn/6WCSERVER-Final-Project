@@ -13,26 +13,23 @@ import GroupExpenseList from '../pages/GroupExpenseList.vue';
 import Reports from '../pages/Reports.vue';
 
 // Function to check if user is authenticated
-// Replace this with your actual authentication logic
 const isAuthenticated = () => {
-  // Check for token (you're storing it as 'token', not 'authToken')
   const token = localStorage.getItem('token');
-  if (token && token !== 'null' && token !== 'undefined') {
+  
+  // Only check for token - simplified and more reliable
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    return false;
+  }
+  
+  // Optional: Check if token is expired (if you store expiration)
+  try {
+    // If your JWT includes expiration, you could decode and check it here
+    // For now, just assume token exists = authenticated
     return true;
+  } catch (error) {
+    console.error('Token validation error:', error);
+    return false;
   }
-  
-  // Fallback: Check for user data
-  const user = localStorage.getItem('user');
-  if (user && user !== 'null' && user !== 'undefined') {
-    try {
-      const userData = JSON.parse(user);
-      return userData && userData.id;
-    } catch (e) {
-      return false;
-    }
-  }
-  
-  return false;
 };
 
 const router = createRouter({
@@ -72,6 +69,15 @@ const router = createRouter({
         // { path: 'profile', name: 'Profile', component: Profile },
       ],
     },
+    // Catch-all route - redirect any unknown routes
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: (to) => {
+        // If user is authenticated, redirect to dashboard
+        // If not authenticated, redirect to landing
+        return isAuthenticated() ? '/dashboard' : '/landing';
+      }
+    }
   ],
 });
 
@@ -84,31 +90,48 @@ router.beforeEach((to, from, next) => {
     to: to.path,
     from: from.path,
     authenticated,
-    token: localStorage.getItem('token'), // Changed from 'authToken' to 'token'
-    user: localStorage.getItem('user')
+    token: localStorage.getItem('token') ? '***exists***' : null, // Hide token value for security
   });
 
   // Handle legacy /app redirect
-  if (to.path === '/app' && authenticated) {
+  if (to.path === '/app') {
+    if (authenticated) {
+      console.log('Redirecting /app to /dashboard');
+      next('/dashboard');
+    } else {
+      console.log('Redirecting /app to /landing - not authenticated');
+      next('/landing');
+    }
+    return;
+  }
+
+  // CRITICAL: If no token and trying to access protected route
+  if (to.meta.requiresAuth && !authenticated) {
+    console.log('Redirecting to landing - no token found');
+    // Clear any invalid data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    next('/landing');
+    return;
+  }
+
+  // If authenticated user tries to access guest-only pages
+  if (to.meta.requiresGuest && authenticated) {
+    console.log('Redirecting to dashboard - already authenticated');
     next('/dashboard');
     return;
   }
 
-  // If route requires authentication and user is not authenticated
-  if (to.meta.requiresAuth && !authenticated) {
-    console.log('Redirecting to landing - not authenticated');
+  // If accessing root path without auth, redirect to landing
+  if (to.path === '/' && !authenticated) {
+    console.log('Redirecting root to landing - not authenticated');
     next('/landing');
+    return;
   }
-  // If route requires guest (not logged in) and user is authenticated
-  else if (to.meta.requiresGuest && authenticated) {
-    console.log('Redirecting to dashboard - already authenticated');
-    next('/dashboard');
-  }
+
   // Otherwise, proceed normally
-  else {
-    console.log('Proceeding to route');
-    next();
-  }
+  console.log('Proceeding to route');
+  next();
 });
 
 export default router;

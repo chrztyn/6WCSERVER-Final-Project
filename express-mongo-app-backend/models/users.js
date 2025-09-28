@@ -20,7 +20,15 @@ const userSchema = new mongoose.Schema({
         type: String 
     },
     joined_groups: [{
-        type: mongoose.Schema.Types.ObjectId, ref: 'Group' 
+        group_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Group'
+        },
+        group_name: String,
+        joined_at: {
+            type: Date,
+            default: Date.now
+        }
     }],
     payment_methods: [{
         method_type: {type: String, required: true},

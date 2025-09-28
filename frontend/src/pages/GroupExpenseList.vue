@@ -1,10 +1,22 @@
 <script>
+// GroupExpenseList.vue
+import AddExpenseForm from './AddExpenseForm.vue';
+import AddMemberForm from './AddMemberForm.vue';
+
 export default {
   name: "GroupExpenseList",
+  components: {
+    AddExpenseForm,
+    AddMemberForm
+  },
   data() {
     return {
       group: null,
-      expenses: []
+      expenses: [],
+      loading: false,
+      error: null,
+      showAddExpenseForm: false,
+      showAddMemberForm: false
     };
   },
   created() {
@@ -16,128 +28,105 @@ export default {
     }
   },
   methods: {
-    loadGroupData() {
-      const groupId = this.$route.params.id;
+    async loadGroupData() {
+      this.loading = true;
+      this.error = null;
       
-      // placeholder data for different groups
-      const groupsData = {
-        1: {
-          id: 1,
-          name: "Group 1",
-          activity: "Activity Name",
-          expenses: [
-            {
-              id: 1,
-              details: "Lunch",
-              payor: "Micah Lapuz",
-              amount: 100.00,
-              date: "10-30-25",
-              status: "all paid"
-            },
-            {
-              id: 2,
-              details: "Cinema",
-              payor: "Kyle Payawal",
-              amount: 800.00,
-              date: "10-31-25",
-              status: "pending"
-            },
-            {
-              id: 3,
-              details: "Dinner",
-              payor: "Maxene Quiambao",
-              amount: 1000.00,
-              date: "10-31-25",
-              status: "pending"
-            }
-          ]
-        },
-        2: {
-          id: 2,
-          name: "Group 2",
-          activity: "Activity Name",
-          expenses: [
-            {
-              id: 4,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "all paid"
-            },
-            {
-              id: 5,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "pending"
-            }
-          ]
-        },
-        3: {
-          id: 3,
-          name: "Group 3",
-          activity: "Activity Name",
-          expenses: [
-            {
-              id: 6,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "all paid"
-            },
-            {
-              id: 7,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "all paid"
-            },
-            {
-              id: 8,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "pending"
-            }
-          ]
-        },
-        4: {
-          id: 4,
-          name: "Group 4",
-          activity: "Activity Name",
-          expenses: [
-            {
-              id: 9,
-              details: "placeholder",
-              payor: "placeholder",
-              amount: 0.00,
-              date: "placeholder",
-              status: "pending"
-            }
-          ]
+      try {
+        const groupId = this.$route.params.id;
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          throw new Error('No authentication token found');
         }
-      };
 
-      // Load group data or use default
-      const groupData = groupsData[groupId] || {
-        id: groupId,
-        name: `Group ${groupId}`,
-        activity: "Activity Name",
-        expenses: []
-      };
+        // Fetch expenses for this group
+        const response = await fetch(`http://localhost:3001/api/expenses/${groupId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-      this.group = {
-        id: groupData.id,
-        name: groupData.name,
-        activity: groupData.activity
-      };
-      this.expenses = groupData.expenses;
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            this.$router.push('/login');
+            return;
+          }
+          throw new Error(`Failed to fetch group data: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        this.group = {
+          id: groupId,
+          name: data.group.name,
+          description: data.group.description
+        };
+        
+        // Format expenses to match your template expectations
+        this.expenses = data.expenses.map((expense, index) => ({
+          id: index + 1, // Since your backend doesn't return expense ID
+          details: expense.description,
+          payor: expense.payor.map(p => p.name).join(', '), // Join multiple payors
+          amount: expense.amount,
+          date: new Date(expense.date).toLocaleDateString(),
+          status: expense.status === 'paid' ? 'all paid' : 'pending'
+        }));
+
+        console.log('Group data loaded:', this.group);
+        console.log('Expenses loaded:', this.expenses);
+        
+      } catch (error) {
+        console.error('Error loading group data:', error);
+        this.error = error.message;
+      } finally {
+        this.loading = false;
+      }
     },
+
+    openAddExpenseForm() {
+      this.showAddExpenseForm = true;
+    },
+
+    closeAddExpenseForm() {
+      this.showAddExpenseForm = false;
+    },
+
+    openAddMemberForm() {
+      this.showAddMemberForm = true;
+    },
+
+    closeAddMemberForm() {
+      this.showAddMemberForm = false;
+    },
+
+    onExpenseAdded(newExpense) {
+      // Add the new expense to the list
+      const formattedExpense = {
+        id: this.expenses.length + 1,
+        details: newExpense.description,
+        payor: newExpense.paid_by.map(p => p.name).join(', '),
+        amount: newExpense.amount,
+        date: new Date(newExpense.date).toLocaleDateString(),
+        status: newExpense.status === 'paid' ? 'all paid' : 'pending'
+      };
+      
+      this.expenses.unshift(formattedExpense); // Add to beginning
+      this.showAddExpenseForm = false;
+      
+      console.log('New expense added:', formattedExpense);
+    },
+
+    onMemberAdded() {
+      // Refresh the group data to get updated member list
+      this.loadGroupData();
+      this.showAddMemberForm = false;
+    },
+
     getStatusClass(status) {
       switch (status) {
         case 'all paid':
@@ -148,38 +137,74 @@ export default {
           return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium';
       }
     },
+    
     formatAmount(amount) {
-      return amount.toFixed(2);
+      return `PHP ${amount.toFixed(2)}`;
     }
   }
 };
 </script>
-
 <template>
   <div class="min-h-screen bg-white">
     <!-- Group Header -->
     <div class="bg-white border-b border-gray-200 px-6 py-8">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-lg font-bold text-[#013DC0]">{{ group.name }}</h1>
-          <p class="text-lg text-gray-600 mt-1">{{ group.activity }}</p>
+          <h1 class="text-lg font-bold text-[#013DC0]">
+            {{ group ? group.name : 'Loading...' }}
+          </h1>
+          <p class="text-lg text-gray-600 mt-1">
+            {{ group ? group.description || 'No description' : '' }}
+          </p>
         </div>
         
         <!-- Action Buttons -->
         <div class="flex gap-3">
-          <button class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors mb-4 flex items-center justify-center gap-2">
-            +Add Member
+          <button 
+            @click="openAddMemberForm"
+            class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+            Add Member
           </button>
-          <button class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors mb-4 flex items-center justify-center gap-2">
-            +New Expense
+          <button 
+            @click="openAddExpenseForm"
+            class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            New Expense
           </button>
         </div>
       </div>
     </div>
 
+    <!-- Loading State -->
+    <div v-if="loading" class="flex items-center justify-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0761FE]"></div>
+      <span class="ml-2 text-gray-600">Loading group data...</span>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="px-6 py-6">
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+        <p class="font-medium">Error loading group data</p>
+        <p class="text-sm mt-1">{{ error }}</p>
+        <button 
+          @click="loadGroupData"
+          class="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+        >
+          Try Again
+        </button>
+      </div>
+    </div>
+
     <!-- Expense Table -->
-    <div class="px-6 py-6">
-      <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div v-else class="px-6 py-6">
+      <div v-if="expenses.length > 0" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table class="w-full">
           <thead class="bg-gray-50">
             <tr>
@@ -217,6 +242,39 @@ export default {
           </tbody>
         </table>
       </div>
+
+      <!-- Empty State -->
+      <div v-else class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No expenses yet</h3>
+        <p class="text-gray-500 mb-4">Add your first expense to start tracking group spending.</p>
+        <button 
+          @click="openAddExpenseForm"
+          class="px-6 py-2 bg-[#0761FE] text-white rounded-lg hover:bg-[#013DC0] transition-colors"
+        >
+          Add First Expense
+        </button>
+      </div>
     </div>
+
+    <!-- Add Expense Form -->
+    <AddExpenseForm 
+      :isOpen="showAddExpenseForm"
+      :groupId="$route.params.id"
+      @close="closeAddExpenseForm"
+      @expense-added="onExpenseAdded"
+    />
+
+    <!-- Add Member Form -->
+    <AddMemberForm 
+      :isOpen="showAddMemberForm"
+      :groupId="$route.params.id"
+      @close="closeAddMemberForm"
+      @member-added="onMemberAdded"
+    />
   </div>
 </template>
