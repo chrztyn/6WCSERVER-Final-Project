@@ -23,11 +23,12 @@ mongoose.connect(dbURI)
 
 // ================== ROUTES ===================
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users')
-const groupRoutes = require('./routes/groups')
-const expenseRoutes = require('./routes/expense')
+const userRoutes = require('./routes/users');
+const groupRoutes = require('./routes/groups');
+const expenseRoutes = require('./routes/expense');
 const balanceRoutes = require('./routes/balance');
-const paymentRoutes = require('./routes/payment')
+const paymentRoutes = require('./routes/payment');
+const reportRoutes = require('./routes/report');
 
 // ================== MOUNT ROUTERS ===================
 app.use('/api/auth', authRoutes);
@@ -36,5 +37,6 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/balances', balanceRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.listen(PORT, () => console.log(`Server running on port http://localhost:${PORT}`));
