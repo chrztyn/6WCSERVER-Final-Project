@@ -193,7 +193,7 @@ export default {
                 to="/transaction"
                 @click="handleTransactionClick"
             >
-                <img src="/Icons/blue profile.png" alt="Profile Icon" class="w-5 h-5"> 
+                <img src="/Icons/blue history.png" alt="Profile Icon" class="w-5 h-5"> 
                 Transactions
             </router-link>
         </nav>
