@@ -66,7 +66,7 @@ export default {
     <div class="max-w-6xl mx-auto p-8">
       <!-- Header Section -->
       <div class="mb-8">
-        <h1 style="font-size: 28px; font-weight: 700; color: #013DC0;">Report Details</h1>
+        <h1 class="text-3xl font-bold text-[#013DC0] mb-2">Report Details</h1>
       </div>
       
       <!-- Loading State -->
