@@ -4,7 +4,7 @@ export default {
     inject: ['openGroupList'],
     data() {
         return {
-            activeNav: 'dashboard', // Default to dashboard
+            activeNav: 'dashboard',
             user: {
                 name: '',
                 email: '',
@@ -43,11 +43,10 @@ export default {
 
                 if (response.ok) {
                     const userData = await response.json();
-                    this.user = userData; // Your endpoint returns the user object directly
+                    this.user = userData;
                     console.log('User data loaded:', userData);
                 } else {
                     console.error('Failed to fetch user data');
-                    // If token is invalid, redirect to login
                     if (response.status === 401 || response.status === 403) {
                         this.handleLogout();
                     }
@@ -67,6 +66,8 @@ export default {
                 this.activeNav = 'reports';
             } else if (currentPath === '/profile') {
                 this.activeNav = 'profile';
+            } else if (currentPath === '/transaction') {
+                this.activeNav = 'transaction';
             } else {
                 this.activeNav = 'dashboard';
             }
@@ -84,19 +85,19 @@ export default {
         handleProfileClick() {
             this.activeNav = 'profile';
         },
+        handleTransactionClick() {
+            this.activeNav = 'transaction';
+        },
         resetActiveState() {
-            this.activeNav = 'dashboard'; // Reset to default
+            this.activeNav = 'dashboard';
         },
         handleLogout() {
-            // Clear localStorage
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             
-            // Redirect to landing page
             this.$router.push('/landing');
         },
         loadUserData() {
-            // Load user data from localStorage
             const userData = localStorage.getItem('user');
             if (userData) {
                 try {
@@ -105,7 +106,7 @@ export default {
                         name: parsedUser.name || parsedUser.firstName + ' ' + parsedUser.lastName || '',
                         email: parsedUser.email || '',
                         phone: parsedUser.phone || '',
-                        password: '', // Don't load password for security
+                        password: '',
                         profilePicture: parsedUser.profilePicture || null
                     };
                 } catch (error) {
@@ -114,10 +115,8 @@ export default {
             }
         },
         setupProfilePictureListener() {
-            // Listen for profile picture updates from Profile page
             window.addEventListener('profilePictureUpdated', (event) => {
                 this.user.profilePicture = event.detail.profilePicture;
-                // Update localStorage
                 const userData = localStorage.getItem('user');
                 if (userData) {
                     try {
@@ -187,6 +186,15 @@ export default {
             >
                 <img src="/Icons/blue profile.png" alt="Profile Icon" class="w-5 h-5"> 
                 Profile
+            </router-link>
+            <router-link 
+                class="flex items-center gap-3 rounded-lg px-4 py-3 transition-all font-medium"
+                :class="activeNav === 'transaction' ? 'bg-[#EDF5FB] text-[#0761FE] border-r-2 border-[#0761FE]' : 'text-[#013DC0] hover:bg-[#EDF5FB] hover:text-[#0761FE]'"
+                to="/transaction"
+                @click="handleTransactionClick"
+            >
+                <img src="/Icons/blue profile.png" alt="Profile Icon" class="w-5 h-5"> 
+                Transactions
             </router-link>
         </nav>
         <div class="absolute left-6 right-6 bottom-6">

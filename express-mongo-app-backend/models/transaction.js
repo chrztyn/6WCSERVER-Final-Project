@@ -20,6 +20,13 @@ const transactionHistorySchema = new mongoose.Schema({
     ref: 'User'
   },
   
+  group_id: { // <-- Add this field
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group',
+    required: true,
+    index: true
+  },
+  
   amount: {
     type: Number,
     required: true,
@@ -93,7 +100,7 @@ const transactionHistorySchema = new mongoose.Schema({
 
 transactionHistorySchema.index({ group_id: 1, transaction_date: -1 });
 transactionHistorySchema.index({ payer_id: 1, transaction_date: -1 });
-transactionHistorySchema.index({ recipient_id: 1, transaction_date: -1 });
+transactionHistorySchema.index({ receiver_id: 1, transaction_date: -1 });
 transactionHistorySchema.index({ transaction_type: 1, status: 1 });
 transactionHistorySchema.index({ group_id: 1, transaction_type: 1, status: 1 });
 

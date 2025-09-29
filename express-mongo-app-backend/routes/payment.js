@@ -84,7 +84,6 @@ router.post('/', authMiddleware, upload.single('proof'), async (req, res) => {
     const newPayment = new Payment(paymentData);
     await newPayment.save();
 
-    // Create transaction history for the payment
     try {
       await TransactionHistory.createFromPayment(newPayment, req.user._id);
       console.log('Transaction history created for payment:', newPayment._id);
@@ -122,7 +121,6 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
     const creditor = group.members.find(member => member.name === creditor_name);
     if (!creditor) return res.status(404).json({ error: 'Creditor not found in group' });
 
-    // Get original debt amount for settlement tracking
     const originalBalance = await Balance.findOne({
       group_id: group_id,
       user_id: payer_id,
@@ -176,7 +174,7 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
         amount: parseFloat(amount),
         currency: 'PHP',
         payer_id: payer_id,
-        recipient_id: creditor._id,
+        receiver_id: creditor._id,
         description: `Debt settlement to ${creditor.name}`,
         payment_method: payment_method,
         status: 'confirmed',
