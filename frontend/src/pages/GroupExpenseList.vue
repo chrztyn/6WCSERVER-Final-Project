@@ -1,5 +1,5 @@
-<script>
 // GroupExpenseList.vue
+<script>
 import AddExpenseForm from './AddExpenseForm.vue';
 import AddMemberForm from './AddMemberForm.vue';
 import ConfirmCardOverlay from '../components/ConfirmCardOverlay.vue';
@@ -69,7 +69,8 @@ export default {
         this.group = {
           id: groupId,
           name: data.group.name,
-          description: data.group.description
+          description: data.group.description,
+          members: data.group.members || []
         };
         
         this.expenses = data.expenses.map((expense, index) => ({
@@ -78,6 +79,8 @@ export default {
           payor: Array.isArray(expense.payor) 
             ? expense.payor.map(p => p.name).join(', ')
             : expense.payor,
+          split_between: expense.split_between || [],
+          split_count: expense.split_between ? expense.split_between.length : this.group.members.length,
           amount: expense.amount,
           date: new Date(expense.date).toLocaleDateString(),
           status: expense.status === 'paid' ? 'all paid' : 'pending'
@@ -118,13 +121,15 @@ export default {
         details: newExpense.description,
         payor: Array.isArray(newExpense.paid_by) 
           ? newExpense.paid_by.map(p => p.name).join(', ')
-          : 'Unknown', // Fallback if payor data is missing
+          : 'Unknown',
+        split_between: newExpense.split_between || [],
+        split_count: newExpense.split_between ? newExpense.split_between.length : this.group.members.length,
         amount: newExpense.amount,
         date: new Date(newExpense.date).toLocaleDateString(),
         status: newExpense.status === 'paid' ? 'all paid' : 'pending'
       };
       
-      this.expenses.unshift(formattedExpense); // Add to beginning
+      this.expenses.unshift(formattedExpense);
       this.showAddExpenseForm = false;
       
       console.log('New expense added to list:', formattedExpense);
@@ -186,6 +191,30 @@ export default {
     
     formatAmount(amount) {
       return `PHP ${parseFloat(amount).toFixed(2)}`;
+    },
+
+    getSplitBetweenText(expense) {
+      if (!expense.split_between || expense.split_between.length === 0) {
+        return `All members (${this.group.members.length})`;
+      }
+      
+      if (expense.split_between.length === this.group.members.length) {
+        return `All members (${expense.split_between.length})`;
+      }
+      
+      if (expense.split_between.length <= 3) {
+        return expense.split_between.map(member => member.name).join(', ');
+      } else {
+        return `${expense.split_between.slice(0, 2).map(member => member.name).join(', ')} +${expense.split_between.length - 2} more`;
+      }
+    },
+
+    getIndividualShare(expense) {
+      const splitCount = expense.split_between && expense.split_between.length > 0 
+        ? expense.split_between.length 
+        : this.group.members.length;
+      const shareAmount = expense.amount / splitCount;
+      return this.formatAmount(shareAmount);
     }
   }
 };
@@ -258,6 +287,8 @@ export default {
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DETAILS</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PAYOR</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">AMOUNT</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">SPLIT BETWEEN</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PER PERSON</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DATE</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">STATUS</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900"></th>
@@ -277,6 +308,17 @@ export default {
               </td>
               <td class="px-6 py-4 text-sm text-gray-900 font-medium">
                 {{ formatAmount(expense.amount) }}
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-600">
+                <div class="flex items-center gap-1">
+                  <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                  </svg>
+                  <span>{{ getSplitBetweenText(expense) }}</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-900 font-medium">
+                {{ getIndividualShare(expense) }}
               </td>
               <td class="px-6 py-4 text-sm text-gray-900">
                 {{ expense.date }}
@@ -335,6 +377,7 @@ export default {
       @close="closeAddMemberForm"
       @member-added="onMemberAdded"
     />
+    
     <ConfirmCardOverlay
         :isOpen="showConfirmOverlay"
         title="Delete Expense"

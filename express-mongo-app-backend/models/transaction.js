@@ -14,13 +14,19 @@ const transactionHistorySchema = new mongoose.Schema({
     required: true,
     index: true
   },
+
+  description: {
+    type: String,
+    required: true,
+    trim: true
+  },
   
   receiver_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
   
-  group_id: { // <-- Add this field
+  group_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
     required: true,
@@ -53,6 +59,18 @@ const transactionHistorySchema = new mongoose.Schema({
 
   metadata: {
     confirmation_code: String,
+    expense_split_details: {
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    amount: Number,
+    percentage: Number
+    },
+    total_expense_amount: Number,
+    number_of_payors: Number,
+    payor_contribution: Number,
+    split_between_count: Number,
     proof_file: {
       filename: String,
       originalname: String,

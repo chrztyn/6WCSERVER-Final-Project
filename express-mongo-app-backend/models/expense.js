@@ -16,6 +16,11 @@ const expenseSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   }],
+  split_between: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }],
   amount: {
     type: Number,
     required: true,
@@ -37,5 +42,6 @@ const expenseSchema = new mongoose.Schema({
 
 expenseSchema.index({ group: 1, date: -1 });
 expenseSchema.index({ 'paid_by': 1 });
+expenseSchema.index({ 'split_between': 1 });
 
 module.exports = mongoose.model('Expense', expenseSchema);

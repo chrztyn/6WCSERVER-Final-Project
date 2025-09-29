@@ -64,7 +64,7 @@ router.post('/', authMiddleware, upload.single('proof'), async (req, res) => {
       expense_id,
       payer_id,
       group_id: expense.group,
-      creditor_id: expense.paid_by[0]._id, // Assuming first payor as creditor
+      creditor_id: expense.paid_by[0]._id, 
       amount,
       payment_method,
       confirmation_code: confirmation_code || null,
@@ -163,12 +163,10 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
       { new: true }
     );
 
-    // Create transaction history for the settlement
     try {
-      // Create a custom transaction with settlement details
       const transactionData = {
         transaction_type: 'settlement',
-        source_id: newPayment._id,
+        related_expense_id: newPayment._id,
         source_model: 'Payment',
         group_id: group_id,
         amount: parseFloat(amount),

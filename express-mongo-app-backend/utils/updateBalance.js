@@ -37,6 +37,40 @@ async function updateBalancesAfterExpense(groupId, memberShare, payorUsers) {
   }
 }
 
+// Reverse balances when expense is deleted or updated
+async function reverseBalancesAfterExpense(groupId, memberShare, payorUsers) {
+  for (let debtorId of Object.keys(memberShare)) {
+    const balanceValue = memberShare[debtorId];
+
+    if (balanceValue > 0) {
+      for (let payor of payorUsers) {
+        const payorId = payor._id.toString();
+
+        if (debtorId !== payorId) {
+          let balance = await Balance.findOne({
+            group_id: groupId,
+            user_id: debtorId,
+            owed_to: payorId
+          });
+
+          const owedAmount = balanceValue / payorUsers.length;
+
+          if (balance) {
+            balance.amount -= owedAmount;
+
+            if (balance.amount <= 0) {
+              await balance.deleteOne();
+            } else {
+              balance.status = 'unpaid';
+              await balance.save();
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 async function applyPayment(payerId, groupId, amount) {
   let balances = await Balance.find({
     group_id: groupId,
@@ -63,4 +97,8 @@ async function applyPayment(payerId, groupId, amount) {
   return { updated: balances, remaining: amountLeft };
 }
 
-module.exports = { updateBalancesAfterExpense, applyPayment };
+module.exports = { 
+  updateBalancesAfterExpense, 
+  reverseBalancesAfterExpense, 
+  applyPayment 
+};
