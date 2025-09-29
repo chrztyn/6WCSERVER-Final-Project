@@ -161,4 +161,26 @@ defineOptions({
       </div>
     </div>
   </section>
+
+  <!-- Footer -->
+  <footer class="relative overflow-hidden border-t border-transparent bg-gradient-to-br from-[#F5F9FF] via-[#EDF5FB] to-white">
+    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0761FE] via-[#07CAFC] to-[#013DC0] opacity-80"></div>
+    <div class="pointer-events-none absolute inset-0 opacity-30">
+      <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, #0761FE 1px, transparent 0); background-size: 22px 22px;"></div>
+    </div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div class="flex flex-col items-center gap-3">
+        <div class="flex items-center gap-3">
+          <span class="text-lg font-semibold bg-gradient-to-r from-[#013DC0] via-[#0761FE] to-[#07CAFC] bg-clip-text text-transparent">SplitSmart</span>
+        </div>
+        <p class="text-center text-sm text-gray-600">
+          Where group expenses become simple and effortless.
+        </p>
+        <div class="mt-2 text-[12px] text-gray-500">
+          © 2025 SplitSmart. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  </footer>
 </template>
