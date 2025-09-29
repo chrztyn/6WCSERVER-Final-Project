@@ -128,7 +128,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // GET transaction statistics/summary
 router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
-    const userId = req.user._id;
+    const mongoose = require('mongoose');
+    const userId = new mongoose.Types.ObjectId(req.user._id);
     const filter = {
       $or: [
         { payer_id: userId },

@@ -90,13 +90,14 @@ export default {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.get('http://localhost:3001/api/transactions/stats/summary', {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` }
         });
-        
-        this.stats = response.data.summary;
-        console.log(this.stats.total_spent);
+
+        this.stats = response.data.summary || {};
+        console.log("Total Spent:", this.stats.total_spent);
+        console.log("Net Balance:", this.stats.net_balance);
       } catch (err) {
-        console.error('Error fetching stats:', err);
+        console.error('Error fetching stats:', err.response?.data || err.message);
       }
     },
     
@@ -208,7 +209,11 @@ export default {
     },
     
     formatCurrency(amount) {
-      return `₱${amount.toFixed(2)}`;
+      if (isNaN(amount)) return '₱0.00';
+      return `₱${amount.toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
     },
     
     isIncoming(transaction) {
