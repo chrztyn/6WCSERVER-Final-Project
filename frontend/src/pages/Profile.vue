@@ -393,7 +393,7 @@ export default {
                   </span>
                 </div>
                 
-                <div v-if="isEditing" class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                <div v-if="isEditing" class="absolute inset-0 bg-black/50 bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                   <div class="text-white text-center">
                     <img src="/Icons/light add.png" alt="Upload" class="w-6 h-6 mx-auto mb-1 filter brightness-0 invert">
                     <span class="text-xs">Upload</span>
@@ -595,7 +595,7 @@ export default {
     </div>
 
     <!-- Payment Method Modal -->
-    <div v-if="showPaymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div v-if="showPaymentModal" class="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div class="p-6">
           <div class="flex items-center justify-between mb-6">

@@ -236,14 +236,15 @@ router.get('/group/:groupId', authMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    const transactions = await TransactionHistory.find({
-      group_id: groupId,
-      $or: [
-        { payer_id: req.user._id },
-        { receiver_id: req.user._id },
-        { created_by: req.user._id }
-      ]
-    })
+    const group = await Groups.findById(groupId);
+    if (!group) {
+        return res.status(404).json({ error: 'Group not found' });
+    }
+    if (!group.members.map(m => m.toString()).includes(req.user._id.toString())) {
+        return res.status(403).json({ error: 'Access denied. You are not a member of this group.' });
+    }
+
+    const transactions = await TransactionHistory.find({ group_id: groupId })
       .populate('payer_id', 'name email')
       .populate('receiver_id', 'name email')
       .populate('created_by', 'name email')
@@ -251,14 +252,7 @@ router.get('/group/:groupId', authMiddleware, async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    const total = await TransactionHistory.countDocuments({
-      group_id: groupId,
-      $or: [
-        { payer_id: req.user._id },
-        { receiver_id: req.user._id },
-        { created_by: req.user._id }
-      ]
-    });
+    const total = await TransactionHistory.countDocuments({ group_id: groupId });
 
     res.json({
       transactions,

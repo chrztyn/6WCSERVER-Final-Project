@@ -183,7 +183,7 @@ export default {
   <!-- Backdrop -->
   <div 
     v-if="isOpen"
-    class="fixed inset-0 z-50"
+    class="fixed inset-0 z-50 bg-black/50"
     @click="closeForm"
   >
     <!-- Form Content -->
