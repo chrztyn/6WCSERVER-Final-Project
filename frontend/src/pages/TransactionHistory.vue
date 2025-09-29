@@ -13,7 +13,7 @@ export default {
       currentPage: 1,
       totalPages: 1,
       totalTransactions: 0,
-      limit: 20,
+      limit: 10,
       // Filters
       filters: {
         transaction_type: '',

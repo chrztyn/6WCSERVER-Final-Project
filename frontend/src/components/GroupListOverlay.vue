@@ -174,7 +174,7 @@ export default {
   <!-- Backdrop -->
   <div 
     v-if="isOpen"
-    class="fixed inset-0 z-40"
+    class="fixed inset-0 z-40 bg-black/50"
     @click="closeOverlay"
   >
     <!-- Overlay Content -->
