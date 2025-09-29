@@ -33,44 +33,50 @@ router.get('/overview', authMiddleware, async (req, res) => {
 });
 
 // VIEW detailed report
-router.get('/detailed', authMiddleware, async (req, res) =>{
-    try{
+router.get('/detailed', authMiddleware, async (req, res) => {
+    try {
         const userId = req.user._id.toString();
 
-        const balanceDebt = await Balance.find({user_id: userId}).populate([
-            {path: 'owed_to', select: 'name email -_id'},
-            {path: 'group_id', select: 'name -_id'}
+        const balanceDebt = await Balance.find({ user_id: userId }).populate([
+            { path: 'owed_to', select: 'name email -_id' },
+            { path: 'group_id', select: 'name -_id' }
         ]);
 
-        const balanceCredit = await Balance.find({owed_to: userId}).populate([
-            {path: 'user_id', select: 'name email -_id'},
-            {path: 'group_id', select: 'name -_id'}
+        const balanceCredit = await Balance.find({ owed_to: userId }).populate([
+            { path: 'user_id', select: 'name email -_id' },
+            { path: 'group_id', select: 'name -_id' }
         ]);
 
-        const youOwe = balanceDebt.filter(a => a.amount > 0)
-        .map(a => ({
-            title: a.group_id ? a.group_id.name : 'Unkown',
-            to: a.owed_to ? a.owed_to.name : 'Unkown',
-            amount: a.amount,
-            status: a.status || 'to pay'
-        }));
+        const getStatus = (amount, currentStatus) => {
+            return amount <= 0.01 ? 'paid' : (currentStatus || 'pending');
+        };
 
-        const owesYou = balanceCredit.filter(a => a.amount > 0)
-        .map(a => ({
-            title: a.group_id ? a.group_id.name : 'Unkown',
-            from: a.user_id ? a.user_id.name : 'Unkown',
-            amount: a.amount,
-            status: a.status || 'pending'
-        }));
+        const youOwe = balanceDebt
+            .filter(a => a.amount > 0)
+            .map(a => ({
+                title: a.group_id ? a.group_id.name : 'Unkown',
+                to: a.owed_to ? a.owed_to.name : 'Unkown',
+                amount: a.amount,
+                status: getStatus(a.amount, 'to pay')
+            }));
+
+        const owesYou = balanceCredit
+            .filter(a => a.amount > 0)
+            .map(a => ({
+                title: a.group_id ? a.group_id.name : 'Unkown',
+                from: a.user_id ? a.user_id.name : 'Unkown',
+                amount: a.amount,
+                status: getStatus(a.amount, 'pending')
+            }));
 
         res.json({
-            detailed:{
+            detailed: {
                 youOwe,
                 owesYou
             }
         });
-    } catch (err){
-            res.status(500).json({ msg: 'Server error', error: err.message });
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error', error: err.message });
     }
 });
 

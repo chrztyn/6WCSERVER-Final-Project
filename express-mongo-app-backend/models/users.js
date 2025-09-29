@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema({
     phone_number: {
         type: String 
     },
+    profile_picture: {
+        type: String, 
+        default: null
+    },
     joined_groups: [{
         group_id: {
             type: mongoose.Schema.Types.ObjectId,
@@ -36,6 +40,8 @@ const userSchema = new mongoose.Schema({
         account_number: String,
         qr_code_url: String
     }]
+}, {
+    timestamps: true
 });
 
 userSchema.pre('save', async function(next){
@@ -43,5 +49,6 @@ userSchema.pre('save', async function(next){
     const salt = await bcrypt.genSalt(10);
     this.password_hash = await bcrypt.hash(this.password_hash, salt);
     next();
-})
+});
+
 module.exports = mongoose.model('User', userSchema);

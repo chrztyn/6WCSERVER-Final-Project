@@ -30,17 +30,38 @@ const paymentSchema = new mongoose.Schema({
     required: true
   },
   confirmation_code: String,
+  proof_file: {
+    filename: String,
+    originalname: String,
+    mimetype: String,
+    size: Number,
+    path: String,
+    uploadDate: {
+      type: Date,
+      default: Date.now
+    }
+  },
   payment_status: { 
     type: String, 
     enum: ['pending', 'confirmed', 'failed'], 
     default: 'pending' 
+  },
+  created_at: {
+    type: Date,
+    default: Date.now
+  },
+  updated_at: {
+    type: Date,
+    default: Date.now
   }
 });
 
 paymentSchema.pre('save', function(next) {
-  if ((this.payment_method === 'Gcash' || this.payment_method === 'Bank') && !this.confirmation_code) {
-    return next(new Error('Confirmation code is required for Gcash or Bank payments'));
+  if ((this.payment_method === 'GCash' || this.payment_method === 'Bank') && !this.confirmation_code) {
+    return next(new Error('Confirmation code is required for GCash or Bank payments'));
   }
+  
+  this.updated_at = new Date();
   next();
 });
 

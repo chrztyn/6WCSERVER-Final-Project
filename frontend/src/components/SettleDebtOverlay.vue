@@ -1,10 +1,10 @@
 <script>
-import ConfirmCardOverlay from '../components/ConfirmCardOverlay.vue';
+import SettleDebtForm from './SettleDebtForm.vue';
 
 export default {
   name: "SettleDebtOverlay",
   components: {
-    ConfirmCardOverlay
+    SettleDebtForm
   },
   props: {
     isOpen: {
@@ -19,19 +19,12 @@ export default {
       debts: [],
       loading: false,
       error: null,
-      showConfirmOverlay: false,
-      selectedDebt: null,
-      paymentForm: {
-        amount: 0,
-        payment_method: 'Cash',
-        confirmation_code: ''
-      },
-      submittingPayment: false
+      showSettleForm: false,
+      selectedDebt: null
     };
   },
 
   watch: {
-    // Fetch debts when overlay opens
     isOpen(newVal) {
       if (newVal) {
         this.fetchDebts();
@@ -41,11 +34,7 @@ export default {
 
   computed: {
     filteredDebts() {
-      return this.debts.filter(debt => debt.amount > 0.01); // Only show debts with meaningful amounts
-    },
-
-    requiresConfirmationCode() {
-      return this.paymentForm.payment_method === 'GCash' || this.paymentForm.payment_method === 'Bank';
+      return this.debts.filter(debt => debt.amount > 0.01);
     }
   },
 
@@ -78,10 +67,6 @@ export default {
           throw new Error(`Failed to fetch debts: ${response.status}`);
         }
 
-        const data = await response.json();
-        
-        // Transform the balance data into debt items
-        // We need to make another call to get detailed balance information
         await this.fetchDetailedBalances();
         
       } catch (error) {
@@ -96,8 +81,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         const currentUser = JSON.parse(localStorage.getItem('user'));
-        
-        // Get all groups the user is part of
+
         const groupsResponse = await fetch('http://localhost:3001/api/groups/my', {
           method: 'GET',
           headers: {
@@ -113,7 +97,6 @@ export default {
         const groups = await groupsResponse.json();
         let allDebts = [];
 
-        // For each group, fetch balance details
         for (const group of groups) {
           const balanceResponse = await fetch(`http://localhost:3001/api/balances/summary/${group._id}`, {
             method: 'GET',
@@ -125,15 +108,14 @@ export default {
 
           if (balanceResponse.ok) {
             const balanceData = await balanceResponse.json();
-            
-            // Filter debts where current user is the debtor
+
             const userDebts = balanceData.summary.filter(debt => 
               debt.Debtor === currentUser.name && debt.Amount > 0.01
             );
 
             userDebts.forEach(debt => {
               allDebts.push({
-                id: `${group._id}_${debt.Creditor}`, // Create unique ID
+                id: `${group._id}_${debt.Creditor}`,
                 groupId: group._id,
                 groupName: group.name,
                 creditorName: debt.Creditor,
@@ -152,76 +134,29 @@ export default {
       }
     },
 
-    showSettleForm(debt) {
+    showSettleDebtForm(debt) {
       this.selectedDebt = debt;
-      this.paymentForm.amount = debt.amount;
-      this.showConfirmOverlay = true;
+      this.showSettleForm = true;
     },
 
-    closeConfirmOverlay() {
-      this.showConfirmOverlay = false;
+    closeSettleForm() {
+      this.showSettleForm = false;
       this.selectedDebt = null;
-      this.resetPaymentForm();
     },
 
-    resetPaymentForm() {
-      this.paymentForm = {
-        amount: 0,
-        payment_method: 'Cash',
-        confirmation_code: ''
-      };
-    },
-
-    async confirmSettlement() {
-      if (!this.selectedDebt) return;
-
-      this.submittingPayment = true;
+    onDebtSettled(settledDebt, settledAmount) {
+      const debtIndex = this.debts.findIndex(d => d.id === settledDebt.id);
       
-      try {
-        const token = localStorage.getItem('token');
-        
-        const paymentData = {
-          group_id: this.selectedDebt.groupId,
-          creditor_name: this.selectedDebt.creditorName,
-          amount: this.paymentForm.amount,
-          payment_method: this.paymentForm.payment_method,
-          confirmation_code: this.paymentForm.confirmation_code || null
-        };
-
-        const response = await fetch('http://localhost:3001/api/payments/settle-debt', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(paymentData)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to settle debt');
+      if (debtIndex !== -1) {
+        if (this.debts[debtIndex].amount <= settledAmount) {
+          this.debts.splice(debtIndex, 1);
+        } else {
+          this.debts[debtIndex].amount -= settledAmount;
         }
-
-        const settledAmount = this.paymentForm.amount;
-        const debtIndex = this.debts.findIndex(d => d.id === this.selectedDebt.id);
-        
-        if (debtIndex !== -1) {
-          if (this.debts[debtIndex].amount <= settledAmount) {
-            this.debts.splice(debtIndex, 1);
-          } else {
-            this.debts[debtIndex].amount -= settledAmount;
-          }
-        }
-
-        console.log('Debt settlement successful');
-        
-      } catch (error) {
-        console.error('Error settling debt:', error);
-        alert(`Failed to settle debt: ${error.message}`);
-      } finally {
-        this.submittingPayment = false;
-        this.closeConfirmOverlay();
       }
+
+      this.closeSettleForm();
+      console.log('Debt settled successfully');
     },
 
     closeOverlay() {
@@ -313,7 +248,7 @@ export default {
                 <!-- Settle Button -->
                 <div class="ml-3 flex-shrink-0">
                   <button 
-                    @click="showSettleForm(debt)"
+                    @click="showSettleDebtForm(debt)"
                     class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-colors"
                   >
                     Settle
@@ -327,7 +262,7 @@ export default {
           <div v-else class="text-center py-8">
             <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 003.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
               </svg>
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">All settled up!</h3>
@@ -337,71 +272,12 @@ export default {
       </div>
     </div>
 
-    <!-- Settlement Form Overlay -->
-    <ConfirmCardOverlay
-      :isOpen="showConfirmOverlay"
-      :title="`Settle Debt with ${selectedDebt?.creditorName || ''}`"
-      :showInput="true"
-      @confirm="confirmSettlement"
-      @cancel="closeConfirmOverlay"
-    >
-      <template #content>
-        <div v-if="selectedDebt" class="space-y-4">
-          <!-- Debt Info -->
-          <div class="bg-gray-50 p-3 rounded-lg">
-            <p class="text-sm text-gray-600">Group: {{ selectedDebt.groupName }}</p>
-            <p class="text-sm text-gray-600">You owe: {{ formatAmount(selectedDebt.amount) }}</p>
-          </div>
-
-          <!-- Payment Amount -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Amount to Pay</label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">PHP</span>
-              <input
-                v-model.number="paymentForm.amount"
-                type="number"
-                step="0.01"
-                :max="selectedDebt.amount"
-                class="w-full pl-12 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-                required
-              />
-            </div>
-          </div>
-
-          <!-- Payment Method -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-            <select
-              v-model="paymentForm.payment_method"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-              required
-            >
-              <option value="Cash">Cash</option>
-              <option value="GCash">GCash</option>
-              <option value="Bank">Bank Transfer</option>
-            </select>
-          </div>
-
-          <!-- Confirmation Code (for GCash/Bank) -->
-          <div v-if="requiresConfirmationCode">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Confirmation Code</label>
-            <input
-              v-model="paymentForm.confirmation_code"
-              type="text"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-              placeholder="Enter transaction reference"
-              required
-            />
-          </div>
-
-          <!-- Loading State -->
-          <div v-if="submittingPayment" class="flex items-center justify-center py-4">
-            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-[#0761FE]"></div>
-            <span class="ml-2 text-gray-600">Processing payment...</span>
-          </div>
-        </div>
-      </template>
-    </ConfirmCardOverlay>
+    <!-- Settle Debt Form -->
+    <SettleDebtForm 
+      :isOpen="showSettleForm"
+      :selectedDebt="selectedDebt"
+      @close="closeSettleForm"
+      @debt-settled="onDebtSettled"
+    />
   </div>
 </template>
