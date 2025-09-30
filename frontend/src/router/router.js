@@ -61,7 +61,11 @@ const router = createRouter({
         { path: 'group/:id', name: 'GroupExpenseList', component: GroupExpenseList },
         { path: 'reports', name: 'Reports', component: Reports },
         { path: 'profile', name: 'Profile', component: Profile },
-        { path: 'transaction', name: 'TransactionHistory', component: TransactionHistory }
+        { 
+          path: 'transaction/:id?', 
+          name: 'TransactionHistory', 
+          component: TransactionHistory 
+        }
       ],
     },
     {
@@ -72,7 +76,6 @@ const router = createRouter({
     }
   ],
 });
-
 
 router.beforeEach((to, from, next) => {
   const authenticated = isAuthenticated();

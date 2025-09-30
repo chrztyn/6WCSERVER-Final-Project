@@ -9,12 +9,10 @@ export default {
       stats: null,
       isLoading: false,
       error: null,
-      // Pagination
       currentPage: 1,
       totalPages: 1,
       totalTransactions: 0,
       limit: 10,
-      // Filters
       filters: {
         transaction_type: '',
         status: '',
@@ -22,13 +20,11 @@ export default {
         start_date: '',
         end_date: ''
       },
-      // Available groups for filter
       groups: [],
-      // Search
       searchQuery: '',
-      // Selected transaction for details modal
       selectedTransaction: null,
-      showDetailsModal: false
+      showDetailsModal: false,
+      showFilters: false
     };
   },
   computed: {
@@ -44,10 +40,26 @@ export default {
       );
     }
   },
-  mounted() {
-    this.fetchTransactions();
-    this.fetchStats();
-    this.fetchGroups();
+  
+  watch: {
+    '$route.params.id': {
+      handler(newId) {
+        if (newId) {
+          this.openTransactionById(newId);
+        }
+      },
+      immediate: false
+    }
+  },
+
+  async mounted() {
+    await this.fetchTransactions();
+    await this.fetchStats();
+    await this.fetchGroups();
+    
+    if (this.$route.params.id) {
+      await this.openTransactionById(this.$route.params.id);
+    }
   },
   methods: {
     async fetchTransactions() {
@@ -62,7 +74,6 @@ export default {
           ...this.filters
         };
         
-        // Remove empty filters
         Object.keys(params).forEach(key => {
           if (params[key] === '' || params[key] === null) {
             delete params[key];
@@ -94,8 +105,6 @@ export default {
         });
 
         this.stats = response.data.summary || {};
-        console.log("Total Spent:", this.stats.total_spent);
-        console.log("Net Balance:", this.stats.net_balance);
       } catch (err) {
         console.error('Error fetching stats:', err.response?.data || err.message);
       }
@@ -114,9 +123,29 @@ export default {
       }
     },
     
+    async openTransactionById(transactionId) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`http://localhost:3001/api/transactions/${transactionId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        this.selectedTransaction = response.data;
+        this.showDetailsModal = true;
+      } catch (err) {
+        console.error('Error fetching transaction:', err);
+        this.error = 'Transaction not found';
+      }
+    },
+    
+    toggleFilters() {
+      this.showFilters = !this.showFilters;
+    },
+    
     applyFilters() {
       this.currentPage = 1;
       this.fetchTransactions();
+      this.showFilters = false;
     },
     
     clearFilters() {
@@ -169,6 +198,10 @@ export default {
     closeDetailsModal() {
       this.showDetailsModal = false;
       this.selectedTransaction = null;
+      
+      if (this.$route.params.id) {
+        this.$router.push('/transaction');
+      }
     },
     
     getTransactionIcon(type) {
@@ -225,178 +258,202 @@ export default {
 </script>
 
 <template>
-  <div class="min-h-screen bg p-8">
+  <div class="min-h-screen bg p-4 sm:p-6 lg:p-8">
     <div class="max-w-7xl mx-auto">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-[#013DC0] mb-2">Transaction History</h1>
-        <p class="text-gray-600">View and manage all your financial transactions</p>
+      <div class="mb-6 sm:mb-8">
+        <h1 class="text-2xl sm:text-3xl font-bold text-[#013DC0] mb-2">Transaction History</h1>
+        <p class="text-sm sm:text-base text-gray-600">View and manage all your financial transactions</p>
       </div>
 
       <!-- Stats Cards -->
-      <div v-if="stats" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div v-if="stats" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600 mb-1">Total Spent</p>
-              <p class="text-2xl font-bold text-red-600">{{ formatCurrency(stats.total_spent) }}</p>
+              <p class="text-xs sm:text-sm text-gray-600 mb-1">Total Spent</p>
+              <p class="text-lg sm:text-2xl font-bold text-red-600">{{ formatCurrency(stats.total_spent) }}</p>
             </div>
-            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-              <span class="text-2xl">💸</span>
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center">
+              <span class="text-xl sm:text-2xl">💸</span>
             </div>
           </div>
         </div>
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600 mb-1">Total Received</p>
-              <p class="text-2xl font-bold text-green-600">{{ formatCurrency(stats.total_received) }}</p>
+              <p class="text-xs sm:text-sm text-gray-600 mb-1">Total Received</p>
+              <p class="text-lg sm:text-2xl font-bold text-green-600">{{ formatCurrency(stats.total_received) }}</p>
             </div>
-            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <span class="text-2xl">💰</span>
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-full flex items-center justify-center">
+              <span class="text-xl sm:text-2xl">💰</span>
             </div>
           </div>
         </div>
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600 mb-1">Total Paid</p>
-              <p class="text-2xl font-bold text-orange-600">{{ formatCurrency(stats.total_paid) }}</p>
+              <p class="text-xs sm:text-sm text-gray-600 mb-1">Total Paid</p>
+              <p class="text-lg sm:text-2xl font-bold text-orange-600">{{ formatCurrency(stats.total_paid) }}</p>
             </div>
-            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-              <span class="text-2xl">💵</span>
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-full flex items-center justify-center">
+              <span class="text-xl sm:text-2xl">💵</span>
             </div>
           </div>
         </div>
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm text-gray-600 mb-1">Net Balance</p>
-              <p class="text-2xl font-bold" :class="stats.net_balance >= 0 ? 'text-green-600' : 'text-red-600'">
+              <p class="text-xs sm:text-sm text-gray-600 mb-1">Net Balance</p>
+              <p class="text-lg sm:text-2xl font-bold" :class="stats.net_balance >= 0 ? 'text-green-600' : 'text-red-600'">
                 {{ formatCurrency(stats.net_balance) }}
               </p>
             </div>
-            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <span class="text-2xl">📊</span>
+            <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+              <span class="text-xl sm:text-2xl">📊</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Filters and Search -->
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-          <!-- Search -->
-          <div class="lg:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search by description, person, or group..."
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-          </div>
-          
-          <!-- Transaction Type -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
-            <select
-              v-model="filters.transaction_type"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-              <option value="">All Types</option>
-              <option value="expense">Expense</option>
-              <option value="payment">Payment</option>
-              <option value="settlement">Settlement</option>
-            </select>
-          </div>
-          
-          <!-- Status -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              v-model="filters.status"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-              <option value="">All Status</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="pending">Pending</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          
-          <!-- Group -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Group</label>
-            <select
-              v-model="filters.group_id"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-              <option value="">All Groups</option>
-              <option v-for="group in groups" :key="group._id" :value="group._id">
-                {{ group.name }}
-              </option>
-            </select>
-          </div>
-        </div>
-        
-        <!-- Date Range -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-            <input
-              v-model="filters.start_date"
-              type="date"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-            <input
-              v-model="filters.end_date"
-              type="date"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
-            >
-          </div>
-        </div>
-        
-        <!-- Filter Actions -->
-        <div class="flex gap-3">
-          <button
-            @click="applyFilters"
-            class="px-6 py-2 bg-[#0761FE] text-white rounded-lg hover:bg-[#013DC0] transition-colors font-medium"
+      <!-- Search and Filter Toggle (Mobile) -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <!-- Search Bar (Always Visible) -->
+        <div class="mb-4 lg:hidden">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search transactions..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
           >
-            Apply Filters
-          </button>
-          <button
-            @click="clearFilters"
-            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-          >
-            Clear All
-          </button>
+        </div>
+
+        <!-- Filter Toggle Button (Mobile/Tablet) -->
+        <button
+          @click="toggleFilters"
+          class="lg:hidden w-full px-4 py-2 bg-[#0761FE] text-white rounded-lg hover:bg-[#013DC0] transition-colors font-medium text-sm flex items-center justify-center gap-2 mb-4"
+        >
+          <span>{{ showFilters ? 'Hide Filters' : 'Show Filters' }}</span>
+          <span>{{ showFilters ? '▲' : '▼' }}</span>
+        </button>
+
+        <!-- Filters (Desktop Always Visible, Mobile/Tablet Toggleable) -->
+        <div :class="{ 'hidden lg:block': !showFilters }">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            <!-- Search (Desktop) -->
+            <div class="hidden lg:block lg:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search by description, person, or group..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent"
+              >
+            </div>
+            
+            <!-- Transaction Type -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+              <select
+                v-model="filters.transaction_type"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
+              >
+                <option value="">All Types</option>
+                <option value="expense">Expense</option>
+                <option value="payment">Payment</option>
+                <option value="settlement">Settlement</option>
+              </select>
+            </div>
+            
+            <!-- Status -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                v-model="filters.status"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
+              >
+                <option value="">All Status</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="pending">Pending</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <!-- Group -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Group</label>
+              <select
+                v-model="filters.group_id"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
+              >
+                <option value="">All Groups</option>
+                <option v-for="group in groups" :key="group._id" :value="group._id">
+                  {{ group.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Date Range -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                v-model="filters.start_date"
+                type="date"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
+              >
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                v-model="filters.end_date"
+                type="date"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent text-sm"
+              >
+            </div>
+          </div>
+          
+          <!-- Filter Actions -->
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button
+              @click="applyFilters"
+              class="px-6 py-2 bg-[#0761FE] text-white rounded-lg hover:bg-[#013DC0] transition-colors font-medium text-sm"
+            >
+              Apply Filters
+            </button>
+            <button
+              @click="clearFilters"
+              class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Clear All
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Error Alert -->
-      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+      <div v-if="error" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 sm:mb-6 flex items-center justify-between text-sm">
         <span>{{ error }}</span>
-        <button @click="error = null" class="text-red-700 hover:text-red-900">×</button>
+        <button @click="error = null" class="text-red-700 hover:text-red-900 text-xl">×</button>
       </div>
 
-      <!-- Transactions Table -->
+      <!-- Transactions Table/Cards -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <!-- Loading State -->
-        <div v-if="isLoading" class="p-12 text-center">
-          <div class="animate-spin w-12 h-12 border-4 border-[#0761FE] border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p class="text-gray-600">Loading transactions...</p>
+        <div v-if="isLoading" class="p-8 sm:p-12 text-center">
+          <div class="animate-spin w-10 h-10 sm:w-12 sm:h-12 border-4 border-[#0761FE] border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p class="text-gray-600 text-sm sm:text-base">Loading transactions...</p>
         </div>
 
         <!-- Transactions List -->
         <div v-else-if="filteredTransactions.length > 0">
-          <div class="overflow-x-auto">
+          <!-- Desktop Table View (lg and up) -->
+          <div class="hidden lg:block overflow-x-auto">
             <table class="w-full">
               <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -475,27 +532,154 @@ export default {
             </table>
           </div>
 
-          <!-- Pagination -->
-          <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <div class="text-sm text-gray-600">
-              Showing {{ (currentPage - 1) * limit + 1 }} to {{ Math.min(currentPage * limit, totalTransactions) }} of {{ totalTransactions }} transactions
+          <!-- Tablet Compact Table View (md to lg) -->
+          <div class="hidden md:block lg:hidden overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr
+                  v-for="transaction in filteredTransactions"
+                  :key="transaction._id"
+                  class="hover:bg-gray-50 transition-colors"
+                >
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                        :class="getTransactionColor(transaction.transaction_type)"
+                      >
+                        {{ getTransactionIcon(transaction.transaction_type) }}
+                      </span>
+                      <div>
+                        <p class="text-sm font-medium text-gray-900 capitalize">{{ transaction.transaction_type }}</p>
+                        <p class="text-xs text-gray-500">{{ transaction.group_id?.name || 'N/A' }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <p class="text-sm text-gray-900 font-medium">{{ transaction.description }}</p>
+                    <p class="text-xs text-gray-500">{{ transaction.payer_id?.name || 'N/A' }}</p>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span
+                      class="text-sm font-semibold"
+                      :class="isIncoming(transaction) ? 'text-red-600' : 'text-green-600'"
+                    >
+                      {{ isIncoming(transaction) ? '-' : '+' }}{{ formatCurrency(transaction.amount) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span
+                      class="px-2 py-1 text-xs font-semibold rounded-full"
+                      :class="getStatusColor(transaction.status)"
+                    >
+                      {{ transaction.status }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <button
+                      @click="viewDetails(transaction)"
+                      class="text-[#0761FE] hover:text-[#013DC0] text-sm font-medium"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Card View (below md) -->
+          <div class="md:hidden divide-y divide-gray-200">
+            <div
+              v-for="transaction in filteredTransactions"
+              :key="transaction._id"
+              class="p-4 hover:bg-gray-50 transition-colors"
+              @click="viewDetails(transaction)"
+            >
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <span
+                    class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    :class="getTransactionColor(transaction.transaction_type)"
+                  >
+                    {{ getTransactionIcon(transaction.transaction_type) }}
+                  </span>
+                  <div>
+                    <p class="font-medium text-gray-900 text-sm">{{ transaction.description }}</p>
+                    <p class="text-xs text-gray-500 capitalize">{{ transaction.transaction_type }}</p>
+                  </div>
+                </div>
+                <span
+                  class="text-sm font-bold flex-shrink-0 ml-2"
+                  :class="isIncoming(transaction) ? 'text-red-600' : 'text-green-600'"
+                >
+                  {{ isIncoming(transaction) ? '-' : '+' }}{{ formatCurrency(transaction.amount) }}
+                </span>
+              </div>
+              
+              <div class="space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">Group:</span>
+                  <span class="text-gray-900">{{ transaction.group_id?.name || 'N/A' }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">From:</span>
+                  <span class="text-gray-900">{{ transaction.payer_id?.name || 'N/A' }}</span>
+                </div>
+                <div v-if="transaction.receiver_id" class="flex items-center justify-between">
+                  <span class="text-gray-600">To:</span>
+                  <span class="text-gray-900">{{ transaction.receiver_id?.name }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">Status:</span>
+                  <span
+                    class="px-2 py-0.5 text-xs font-semibold rounded-full"
+                    :class="getStatusColor(transaction.status)"
+                  >
+                    {{ transaction.status }}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-gray-600">Date:</span>
+                  <span class="text-gray-900">{{ formatDate(transaction.transaction_date || transaction.created_at) }}</span>
+                </div>
+              </div>
             </div>
-            <div class="flex gap-2">
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else class="p-8 sm:p-12 text-center">
+          <div class="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl sm:text-3xl">📝</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-medium text-gray-800 mb-2">No transactions found</h3>
+          <p class="text-sm text-gray-600">Try adjusting your filters or search terms</p>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="filteredTransactions.length > 0" class="bg-gray-50 px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-200">
+          <!-- Mobile Pagination -->
+          <div class="sm:hidden">
+            <div class="text-xs text-gray-600 text-center mb-3">
+              Page {{ currentPage }} of {{ totalPages }}
+            </div>
+            <div class="flex gap-2 justify-center">
               <button
                 @click="prevPage"
                 :disabled="currentPage === 1"
                 class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
-              </button>
-              <button
-                v-for="page in Math.min(totalPages, 5)"
-                :key="page"
-                @click="goToPage(page)"
-                class="px-4 py-2 border rounded-lg text-sm font-medium"
-                :class="currentPage === page ? 'bg-[#0761FE] text-white border-[#0761FE]' : 'border-gray-300 text-gray-700 hover:bg-gray-100'"
-              >
-                {{ page }}
               </button>
               <button
                 @click="nextPage"
@@ -506,15 +690,38 @@ export default {
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- Empty State -->
-        <div v-else class="p-12 text-center">
-          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span class="text-3xl">📝</span>
+          <!-- Desktop/Tablet Pagination -->
+          <div class="hidden sm:flex items-center justify-between">
+            <div class="text-xs sm:text-sm text-gray-600">
+              Showing {{ (currentPage - 1) * limit + 1 }} to {{ Math.min(currentPage * limit, totalTransactions) }} of {{ totalTransactions }} transactions
+            </div>
+            <div class="flex gap-2">
+              <button
+                @click="prevPage"
+                :disabled="currentPage === 1"
+                class="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                v-for="page in Math.min(totalPages, 5)"
+                :key="page"
+                @click="goToPage(page)"
+                class="px-3 sm:px-4 py-2 border rounded-lg text-xs sm:text-sm font-medium"
+                :class="currentPage === page ? 'bg-[#0761FE] text-white border-[#0761FE]' : 'border-gray-300 text-gray-700 hover:bg-gray-100'"
+              >
+                {{ page }}
+              </button>
+              <button
+                @click="nextPage"
+                :disabled="currentPage === totalPages"
+                class="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
-          <h3 class="text-lg font-medium text-gray-800 mb-2">No transactions found</h3>
-          <p class="text-gray-600">Try adjusting your filters or search terms</p>
         </div>
       </div>
     </div>
@@ -522,75 +729,75 @@ export default {
     <!-- Transaction Details Modal -->
     <div
       v-if="showDetailsModal && selectedTransaction"
-      class="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center z-50 p-4"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       @click.self="closeDetailsModal"
     >
-      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="text-xl font-semibold text-gray-800">Transaction Details</h3>
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Transaction Details</h3>
           <button @click="closeDetailsModal" class="text-gray-400 hover:text-gray-600">
             <span class="text-2xl">×</span>
           </button>
         </div>
         
-        <div class="p-6 space-y-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-sm font-medium text-gray-600">Transaction ID</label>
-              <p class="text-sm text-gray-900 font-mono">{{ selectedTransaction._id }}</p>
+        <div class="p-4 sm:p-6 space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Transaction ID</label>
+              <p class="text-xs sm:text-sm text-gray-900 font-mono break-all">{{ selectedTransaction._id }}</p>
             </div>
             <div>
-              <label class="text-sm font-medium text-gray-600">Type</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Type</label>
               <p class="text-sm text-gray-900 capitalize">{{ selectedTransaction.transaction_type }}</p>
             </div>
             <div>
-              <label class="text-sm font-medium text-gray-600">Amount</label>
-              <p class="text-lg font-bold text-gray-900">{{ formatCurrency(selectedTransaction.amount) }}</p>
-            </div>
-            <div>
-              <label class="text-sm font-medium text-gray-600">Status</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Status</label>
               <span
-                class="inline-block px-3 py-1 text-xs font-semibold rounded-full"
+                class="inline-block px-3 py-1 text-xs font-semibold rounded-full mt-1"
                 :class="getStatusColor(selectedTransaction.status)"
               >
                 {{ selectedTransaction.status }}
               </span>
             </div>
+            <div class="sm:col-span-2">
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Amount</label>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900">{{ formatCurrency(selectedTransaction.amount) }}</p>
+            </div>
             <div>
-              <label class="text-sm font-medium text-gray-600">Payer</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Payer</label>
               <p class="text-sm text-gray-900">{{ selectedTransaction.payer_id?.name || 'N/A' }}</p>
               <p class="text-xs text-gray-500">{{ selectedTransaction.payer_id?.email || 'N/A' }}</p>
             </div>
             <div v-if="selectedTransaction.receiver_id">
-              <label class="text-sm font-medium text-gray-600">Recipient</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Recipient</label>
               <p class="text-sm text-gray-900">{{ selectedTransaction.receiver_id?.name || 'N/A' }}</p>
               <p class="text-xs text-gray-500">{{ selectedTransaction.receiver_id?.email || 'N/A' }}</p>
             </div>
             <div>
-              <label class="text-sm font-medium text-gray-600">Group</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Group</label>
               <p class="text-sm text-gray-900">{{ selectedTransaction.group_id?.name || 'N/A' }}</p>
             </div>
             <div>
-              <label class="text-sm font-medium text-gray-600">Date</label>
+              <label class="text-xs sm:text-sm font-medium text-gray-600">Date</label>
               <p class="text-sm text-gray-900">{{ formatDate(selectedTransaction.transaction_date) }}</p>
             </div>
           </div>
           
           <div>
-            <label class="text-sm font-medium text-gray-600">Description</label>
+            <label class="text-xs sm:text-sm font-medium text-gray-600">Description</label>
             <p class="text-sm text-gray-900 mt-1">{{ selectedTransaction.description }}</p>
           </div>
           
-          <div v-if="selectedTransaction.metadata" class="bg-gray-50 rounded-lg p-4">
-            <label class="text-sm font-medium text-gray-600 mb-2 block">Additional Information</label>
+          <div v-if="selectedTransaction.metadata" class="bg-gray-50 rounded-lg p-3 sm:p-4">
+            <label class="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Additional Information</label>
             <pre class="text-xs text-gray-700 overflow-x-auto">{{ JSON.stringify(selectedTransaction.metadata, null, 2) }}</pre>
           </div>
         </div>
         
-        <div class="p-6 border-t border-gray-200 flex justify-end">
+        <div class="p-4 sm:p-6 border-t border-gray-200 flex justify-end sticky bottom-0 bg-white">
           <button
             @click="closeDetailsModal"
-            class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+            class="w-full sm:w-auto px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
           >
             Close
           </button>

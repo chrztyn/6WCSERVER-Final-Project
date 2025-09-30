@@ -47,6 +47,7 @@ const balanceRoutes = require('./routes/balance');
 const paymentRoutes = require('./routes/payment');
 const reportRoutes = require('./routes/report');
 const transactionRoutes = require('./routes/transaction');
+const searchRoutes = require('./routes/search');
 
 // ================== MOUNT ROUTERS ===================
 app.use('/api/auth', authRoutes);
@@ -57,6 +58,7 @@ app.use('/api/balances', balanceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/search', searchRoutes);
 
 // ================== ERROR HANDLING MIDDLEWARE ===================
 app.use((error, req, res, next) => {

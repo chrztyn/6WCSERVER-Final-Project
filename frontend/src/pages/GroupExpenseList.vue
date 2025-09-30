@@ -1,4 +1,3 @@
-// GroupExpenseList.vue
 <script>
 import AddExpenseForm from './AddExpenseForm.vue';
 import AddMemberForm from './AddMemberForm.vue';
@@ -44,7 +43,6 @@ export default {
           throw new Error('No authentication token found');
         }
 
-        // Fetch expenses for this group
         const response = await fetch(`http://localhost:3001/api/expenses/${groupId}`, {
           method: 'GET',
           headers: {
@@ -140,17 +138,6 @@ export default {
       this.showAddMemberForm = false;
     },
 
-    getStatusClass(status) {
-      switch (status) {
-        case 'all paid':
-          return 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium';
-        case 'pending':
-          return 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium';
-        default:
-          return 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium';
-      }
-    },
-
     showConfirmDelete(expenseId) {
         this.expenseToDeleteId = expenseId;
         this.showConfirmOverlay = true;
@@ -172,7 +159,6 @@ export default {
               throw new Error('Failed to delete expense');
           }
 
-          // Remove the deleted expense from the local list
           this.expenses = this.expenses.filter(expense => expense.id !== expenseId);
           console.log('Expense deleted successfully');
 
@@ -190,7 +176,7 @@ export default {
     },
     
     formatAmount(amount) {
-      return `PHP ${parseFloat(amount).toFixed(2)}`;
+      return `₱${parseFloat(amount).toFixed(2)}`;
     },
 
     getSplitBetweenText(expense) {
@@ -223,36 +209,38 @@ export default {
 <template>
   <div class="min-h-screen bg-white">
     <!-- Group Header -->
-    <div class="bg-white border-b border-gray-200 px-6 py-8">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-lg font-bold text-[#013DC0]">
+    <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 sm:py-6 lg:py-8">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex-1">
+          <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-[#013DC0]">
             {{ group ? group.name : 'Loading...' }}
           </h1>
-          <p class="text-lg text-gray-600 mt-1">
+          <p class="text-sm sm:text-base text-gray-600 mt-1">
             {{ group ? group.description || 'No description' : '' }}
           </p>
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex gap-3">
+        <div class="flex gap-2 sm:gap-3">
           <button 
             @click="openAddMemberForm"
-            class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+            class="flex-1 sm:flex-none bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
             </svg>
-            Add Member
+            <span class="hidden sm:inline">Add Member</span>
+            <span class="sm:hidden">Member</span>
           </button>
           <button 
             @click="openAddExpenseForm"
-            class="bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg p-3 font-medium transition-colors flex items-center justify-center gap-2"
+            class="flex-1 sm:flex-none bg-[#0761FE] hover:bg-[#013DC0] text-white rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
-            New Expense
+            <span class="hidden sm:inline">New Expense</span>
+            <span class="sm:hidden">Expense</span>
           </button>
         </div>
       </div>
@@ -261,11 +249,11 @@ export default {
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0761FE]"></div>
-      <span class="ml-2 text-gray-600">Loading group data...</span>
+      <span class="ml-2 text-gray-600">Loading...</span>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="px-6 py-6">
+    <div v-else-if="error" class="px-4 sm:px-6 py-6">
       <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
         <p class="font-medium">Error loading group data</p>
         <p class="text-sm mt-1">{{ error }}</p>
@@ -278,72 +266,115 @@ export default {
       </div>
     </div>
 
-    <!-- Expense Table -->
-    <div v-else class="px-6 py-6">
-      <div v-if="expenses.length > 0" class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table class="w-full">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DETAILS</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PAYOR</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">AMOUNT</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">SPLIT BETWEEN</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PER PERSON</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DATE</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">STATUS</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <tr 
-              v-for="expense in expenses" 
-              :key="expense.id"
-              class="hover:bg-gray-50 transition-colors"
-            >
-              <td class="px-6 py-4 text-sm text-gray-900 font-medium">
-                {{ expense.details }}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-900">
-                {{ expense.payor }}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-900 font-medium">
-                {{ formatAmount(expense.amount) }}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-600">
-                <div class="flex items-center gap-1">
-                  <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                  </svg>
-                  <span>{{ getSplitBetweenText(expense) }}</span>
-                </div>
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-900 font-medium">
-                {{ getIndividualShare(expense) }}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-900">
-                {{ expense.date }}
-              </td>
-              <td class="px-6 py-4">
-                <span :class="getStatusClass(expense.status)">
-                  {{ expense.status }}
-                </span>
-              </td>
-              <td class="px-6 py-4 text-right">
-                <button 
-                  @click="showConfirmDelete(expense.id)"
-                  class="text-red-500 hover:text-red-700 transition-colors"
-                  aria-label="Delete expense"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- Expense Content -->
+    <div v-else class="px-4 sm:px-6 py-4 sm:py-6">
+      <!-- Desktop Table View (lg and above) -->
+      <div v-if="expenses.length > 0" class="hidden lg:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DETAILS</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PAYOR</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">AMOUNT</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">SPLIT BETWEEN</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">PER PERSON</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">DATE</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr 
+                v-for="expense in expenses" 
+                :key="expense.id"
+                class="hover:bg-gray-50 transition-colors"
+              >
+                <td class="px-6 py-4 text-sm text-gray-900 font-medium">
+                  {{ expense.details }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ expense.payor }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900 font-medium">
+                  {{ formatAmount(expense.amount) }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-600">
+                  <div class="flex items-center gap-1">
+                    <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    <span>{{ getSplitBetweenText(expense) }}</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900 font-medium">
+                  {{ getIndividualShare(expense) }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-900">
+                  {{ expense.date }}
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <button 
+                    @click="showConfirmDelete(expense.id)"
+                    class="text-red-500 hover:text-red-700 transition-colors"
+                    aria-label="Delete expense"
+                  >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      <!-- Mobile/Tablet Card View -->
+      <div v-if="expenses.length > 0" class="lg:hidden space-y-3">
+        <div
+          v-for="expense in expenses"
+          :key="expense.id"
+          class="bg-white rounded-lg border border-gray-200 p-3 shadow-sm"
+        >
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold text-gray-900 text-sm leading-tight">{{ expense.details }}</h3>
+              <p class="text-xs text-gray-600 mt-0.5">Paid by {{ expense.payor }}</p>
+            </div>
+            <button 
+              @click="showConfirmDelete(expense.id)"
+              class="text-red-500 hover:text-red-700 transition-colors ml-2 flex-shrink-0"
+              aria-label="Delete expense"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <p class="text-xs text-gray-500">Total Amount</p>
+              <p class="font-semibold text-sm text-[#0761FE]">{{ formatAmount(expense.amount) }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-500">Per Person</p>
+              <p class="font-semibold text-sm text-gray-900">{{ getIndividualShare(expense) }}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+            <div class="flex items-center gap-1 text-xs text-gray-600">
+              <svg class="w-3.5 h-3.5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+              <span class="truncate">{{ getSplitBetweenText(expense) }}</span>
+            </div>
+            <span class="text-xs text-gray-500 ml-2 flex-shrink-0">{{ expense.date }}</span>
+          </div>
+        </div>
+      </div>
+      
       <!-- Empty State -->
       <div v-else class="text-center py-12">
         <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -352,7 +383,7 @@ export default {
           </svg>
         </div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">No expenses yet</h3>
-        <p class="text-gray-500 mb-4">Add your first expense to start tracking group spending.</p>
+        <p class="text-gray-500 mb-4 text-sm sm:text-base px-4">Add your first expense to start tracking group spending.</p>
         <button 
           @click="openAddExpenseForm"
           class="px-6 py-2 bg-[#0761FE] text-white rounded-lg hover:bg-[#013DC0] transition-colors"

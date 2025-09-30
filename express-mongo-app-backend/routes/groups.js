@@ -2,6 +2,7 @@ const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const Groups = require('../models/groups');
+const Balance = require('../models/balance');
 const router = express.Router();
 const Expense = require('../models/expense');
 
@@ -67,31 +68,214 @@ router.get('/my', authMiddleware, async (req, res) => {
   }
 });
 
+// CHECK if user can leave group (validation endpoint)
+router.get('/:id/can-leave', authMiddleware, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+    const userId = req.user._id;
+
+    // Check if group exists
+    const group = await Groups.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Check if user is a member
+    const isMember = group.members.some(
+      memberId => memberId.toString() === userId.toString()
+    );
+    if (!isMember) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    // Check user's balances in this group
+    const userBalances = await Balance.find({
+      group_id: groupId,
+      $or: [
+        { user_id: userId },
+        { owed_to: userId }
+      ],
+      status: 'unpaid'
+    });
+
+    // Calculate total debt (what user owes)
+    let totalDebt = 0;
+    let totalOwed = 0;
+    const debtsDetails = [];
+    const owedDetails = [];
+
+    for (const balance of userBalances) {
+      // Skip balances less than 0.01 (treat as paid)
+      if (balance.amount < 0.01) {
+        continue;
+      }
+
+      if (balance.user_id.toString() === userId.toString()) {
+        // User owes this amount
+        totalDebt += balance.amount;
+        const owedToUser = await Users.findById(balance.owed_to).select('name email');
+        debtsDetails.push({
+          amount: balance.amount,
+          owedTo: owedToUser ? owedToUser.name : 'Unknown',
+          owedToEmail: owedToUser ? owedToUser.email : 'Unknown'
+        });
+      } else if (balance.owed_to.toString() === userId.toString()) {
+        // Someone owes user this amount
+        totalOwed += balance.amount;
+        const debtor = await Users.findById(balance.user_id).select('name email');
+        owedDetails.push({
+          amount: balance.amount,
+          from: debtor ? debtor.name : 'Unknown',
+          fromEmail: debtor ? debtor.email : 'Unknown'
+        });
+      }
+    }
+
+    const canLeave = totalDebt < 0.01;
+    const hasOutstandingOwed = totalOwed >= 0.01;
+
+    res.json({
+      canLeave,
+      totalDebt,
+      totalOwed,
+      debtsDetails,
+      owedDetails,
+      message: canLeave 
+        ? (hasOutstandingOwed 
+            ? 'You can leave, but others still owe you money. Consider settling first.'
+            : 'You can leave this group.')
+        : 'You cannot leave this group until you settle your debts.'
+    });
+
+  } catch (err) {
+    console.error('Error checking leave eligibility:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
+// GET group balances for all members
+router.get('/:id/balances', authMiddleware, async (req, res) => {
+  try {
+    const groupId = req.params.id;
+
+    // Check if group exists and user is a member
+    const group = await Groups.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    const isMember = group.members.some(
+      memberId => memberId.toString() === req.user._id.toString()
+    );
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get all unpaid balances for this group
+    const balances = await Balance.find({
+      group_id: groupId,
+      status: 'unpaid'
+    }).populate('user_id owed_to', 'name email');
+
+    // Calculate net balance for each member
+    const memberBalances = {};
+    
+    // Initialize all members with 0 balance
+    group.members.forEach(memberId => {
+      memberBalances[memberId.toString()] = 0;
+    });
+
+    // Calculate balances
+    balances.forEach(balance => {
+      const userId = balance.user_id._id.toString();
+      const owedToId = balance.owed_to._id.toString();
+      
+      // User owes money (negative balance)
+      memberBalances[userId] -= balance.amount;
+      // OwedTo is owed money (positive balance)
+      memberBalances[owedToId] += balance.amount;
+    });
+
+    // Format response
+    const result = Object.entries(memberBalances).map(([userId, balance]) => ({
+      user_id: userId,
+      balance: balance,
+      status: balance < 0 ? 'owes' : balance > 0 ? 'owed' : 'settled'
+    }));
+
+    res.json(result);
+
+  } catch (err) {
+    console.error('Error fetching group balances:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
+  }
+});
+
 // DELETE / LEAVE group
 router.delete('/:id/leave', authMiddleware, async (req, res) => {
-  try{
-    const group = await Groups.findById(req.params.id);
-    if (!group) return res.status(404).json({msg: 'Group not found'});
+  try {
+    const groupId = req.params.id;
+    const userId = req.user._id;
+
+    const group = await Groups.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Check if user has any unpaid debts in this group (over 0.01)
+    const unpaidDebts = await Balance.find({
+      group_id: groupId,
+      user_id: userId,
+      status: 'unpaid',
+      amount: { $gte: 0.01 } // Only consider debts >= 0.01
+    });
+
+    if (unpaidDebts.length > 0) {
+      const totalDebt = unpaidDebts.reduce((sum, debt) => sum + debt.amount, 0);
+      return res.status(400).json({ 
+        error: 'Cannot leave group with outstanding debts',
+        totalDebt: totalDebt,
+        message: `You owe ₱${totalDebt.toFixed(2)} in this group. Please settle your debts before leaving.`
+      });
+    }
+
+    // Check if others owe this user (optional warning)
+    const unpaidOwed = await Balance.find({
+      group_id: groupId,
+      owed_to: userId,
+      status: 'unpaid',
+      amount: { $gte: 0.01 } // Only consider amounts >= 0.01
+    });
 
     // Remove user from group's members array
     group.members = group.members.filter(
-      (memberId) => memberId.toString() !== req.user._id.toString()
+      (memberId) => memberId.toString() !== userId.toString()
     );
     await group.save();
 
     // Remove group from user's joined_groups array by group_id
-    await Users.findByIdAndUpdate(req.user._id, {
+    await Users.findByIdAndUpdate(userId, {
       $pull: { joined_groups: { group_id: group._id } }
     });
 
-    res.json({ message: 'Left group successfully' });
-  }catch (err) {
-    res.status(500).send('Server error: ' + err.message);
+    const response = { 
+      message: 'Left group successfully'
+    };
+
+    if (unpaidOwed.length > 0) {
+      const totalOwed = unpaidOwed.reduce((sum, owed) => sum + owed.amount, 0);
+      response.warning = `Note: Group members still owe you ₱${totalOwed.toFixed(2)}`;
+    }
+
+    res.json(response);
+
+  } catch (err) {
+    console.error('Error leaving group:', err);
+    res.status(500).json({ error: 'Server error: ' + err.message });
   }
 });
 
 // ADD MEMBER
-
 router.post('/:id/add-members', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
@@ -206,6 +390,34 @@ router.get('/my/summary', authMiddleware, async (req, res) => {
     );
 
     res.json(groupsWithSummary);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET groups notifcation
+router.get('/notification/:groupId', authMiddleware, async (req, res) => {
+  try {
+    const group = await Groups.findById(req.params.groupId)
+      .populate([
+        { path: 'members', select: 'name email -_id' },
+        { path: 'created_by', select: 'name email -_id' }
+      ]);
+
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+
+    // Ensure user belongs to the group
+    const isMember = group.members.some(
+      (member) => member._id.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({ error: 'Access denied. Not a member of this group.' });
+    }
+
+    res.json({ message: 'Notification resolved', group });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

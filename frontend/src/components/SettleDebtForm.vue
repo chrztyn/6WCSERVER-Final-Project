@@ -29,7 +29,9 @@ export default {
         amount: '',
         confirmation_code: '',
         proof_file: ''
-      }
+      },
+      creditorPaymentMethods: null,
+      loadingPaymentMethods: false
     };
   },
 
@@ -44,6 +46,16 @@ export default {
 
     maxFileSize() {
       return 5 * 1024 * 1024; // 5MB
+    },
+
+    selectedPaymentMethodDetails() {
+      if (!this.creditorPaymentMethods) return null;
+      
+      const method = this.creditorPaymentMethods.find(
+        m => m.method_type === this.paymentForm.payment_method
+      );
+      
+      return method || null;
     }
   },
 
@@ -52,17 +64,45 @@ export default {
       if (newVal && this.selectedDebt) {
         this.resetForm();
         this.paymentForm.amount = this.selectedDebt.amount;
+        this.fetchCreditorPaymentMethods();
       }
     },
 
     selectedDebt(newDebt) {
       if (newDebt) {
         this.paymentForm.amount = newDebt.amount;
+        this.fetchCreditorPaymentMethods();
       }
     }
   },
 
   methods: {
+    async fetchCreditorPaymentMethods() {
+      if (!this.selectedDebt || !this.selectedDebt.creditorId) return;
+      
+      this.loadingPaymentMethods = true;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/users/${this.selectedDebt.creditorId}/payment-methods`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          this.creditorPaymentMethods = data.payment_methods || [];
+        }
+      } catch (error) {
+        console.error('Error fetching payment methods:', error);
+      } finally {
+        this.loadingPaymentMethods = false;
+      }
+    },
+
     validateForm() {
       let isValid = true;
       this.formErrors = { amount: '', confirmation_code: '', proof_file: '' };
@@ -191,6 +231,7 @@ export default {
       this.formErrors = { amount: '', confirmation_code: '', proof_file: '' };
       this.error = null;
       this.successMessage = null;
+      this.creditorPaymentMethods = null;
     },
 
     closeForm() {
@@ -208,6 +249,13 @@ export default {
       const sizes = ['Bytes', 'KB', 'MB', 'GB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    getImageUrl(path) {
+      if (!path) return null;
+      // Remove leading slash if present
+      const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+      return `http://localhost:3001/${cleanPath}`;
     }
   }
 };
@@ -217,17 +265,17 @@ export default {
   <!-- Backdrop -->
   <div 
     v-if="isOpen"
-    class="fixed inset-0 z-50"
+    class="fixed inset-0 z-50 bg-black/50"
     @click="closeForm"
   >
     <!-- Form Content -->
     <div 
-      class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out"
+      class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto"
       :class="isOpen ? 'translate-x-0' : 'translate-x-full'"
       @click.stop
     >
       <!-- Header -->
-      <div class="bg-gradient-to-r from-[#0761FE] to-[#013DC0] text-white p-6">
+      <div class="bg-gradient-to-r from-[#0761FE] to-[#013DC0] text-white p-6 sticky top-0 z-10">
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold">Settle Debt</h2>
           <button 
@@ -242,7 +290,7 @@ export default {
       </div>
 
       <!-- Form Content -->
-      <div class="p-6 h-full flex flex-col">
+      <div class="p-6">
         <!-- Success Message -->
         <div v-if="successMessage" class="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg">
           {{ successMessage }}
@@ -264,7 +312,7 @@ export default {
         </div>
 
         <!-- Form -->
-        <form @submit.prevent="submitSettlement" class="flex-1 flex flex-col space-y-4">
+        <form @submit.prevent="submitSettlement" class="space-y-4">
           <!-- Amount -->
           <div>
             <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">
@@ -304,6 +352,63 @@ export default {
             </select>
           </div>
 
+          <!-- Payment Method Details (GCash/Bank) -->
+          <div v-if="selectedPaymentMethodDetails && (paymentForm.payment_method === 'GCash' || paymentForm.payment_method === 'Bank')" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 class="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              {{ paymentForm.payment_method }} Payment Information
+            </h4>
+            
+            <div class="space-y-3">
+              <!-- Account Name -->
+              <div>
+                <p class="text-xs text-gray-600 mb-1">Account Name</p>
+                <p class="text-sm font-medium text-gray-900">{{ selectedPaymentMethodDetails.account_name }}</p>
+              </div>
+
+              <!-- Account Number -->
+              <div>
+                <p class="text-xs text-gray-600 mb-1">{{ paymentForm.payment_method === 'GCash' ? 'Mobile Number' : 'Account Number' }}</p>
+                <p class="text-sm font-medium text-gray-900 font-mono">{{ selectedPaymentMethodDetails.account_number }}</p>
+              </div>
+
+              <!-- QR Code -->
+              <div v-if="selectedPaymentMethodDetails.qr_code_url" class="mt-3">
+                <p class="text-xs text-gray-600 mb-2">Scan QR Code</p>
+                <div class="bg-white p-3 rounded-lg border border-gray-300 inline-block">
+                  <img 
+                    :src="getImageUrl(selectedPaymentMethodDetails.qr_code_url)" 
+                    alt="QR Code"
+                    class="w-48 h-48 object-contain"
+                    @error="(e) => e.target.src = '/placeholder-qr.png'"
+                  />
+                </div>
+              </div>
+
+              <!-- Instructions -->
+              <div class="bg-white p-3 rounded-lg border border-blue-200 mt-3">
+                <p class="text-xs text-blue-800">
+                  <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  Send payment to the account above and enter the confirmation/reference code below.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Payment Method Available Warning -->
+          <div v-else-if="!loadingPaymentMethods && !selectedPaymentMethodDetails && (paymentForm.payment_method === 'GCash' || paymentForm.payment_method === 'Bank')" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p class="text-sm text-yellow-800">
+              <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+              {{ selectedDebt?.creditorName }} hasn't set up {{ paymentForm.payment_method }} payment details yet.
+            </p>
+          </div>
+
           <!-- Confirmation Code -->
           <div v-if="requiresConfirmationCode">
             <label for="confirmationCode" class="block text-sm font-medium text-gray-700 mb-2">
@@ -322,7 +427,7 @@ export default {
           </div>
 
           <!-- Proof of Payment -->
-          <div class="flex-1">
+          <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Proof of Payment <span class="text-gray-400">(optional)</span>
             </label>
@@ -387,7 +492,7 @@ export default {
           </div>
 
           <!-- Submit Button -->
-          <div class="border-t pt-4 mt-auto flex-1">
+          <div class="pt-4">
             <button
               type="submit"
               :disabled="loading"

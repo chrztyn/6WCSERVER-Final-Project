@@ -147,4 +147,14 @@ router.post('/upload-qr', authMiddleware, upload.single('qr_code'), async (req, 
   }
 });
 
+// GET UPLOADED QR Code for payment methods
+router.get('/:userId/payment-methods', authMiddleware, async (req, res) => {
+  try {
+    const user = await Users.findById(req.params.userId).select('payment_methods');
+    res.json({ payment_methods: user.payment_methods || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

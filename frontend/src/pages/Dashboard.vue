@@ -17,20 +17,23 @@ export default {
 };
 </script>
 
-
 <template>
-<div class="dashboard-container">
-  <!-- Content area only; Sidebar and Topbar now live in layout -->
-  <div class="grid grid-cols-[1fr_340px] gap-8 p-8 max-w-[1400px] mx-auto">
-    <div class="grid gap-8">
-      <GroupSummary />
-      <QuickAccess />
-      <RecentActivities />
-    </div>
-    <div class="grid gap-8">
-      <BalanceOverview />
-      <ReportOverview />
+  <div class="dashboard-container">
+    <!-- Responsive grid layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+      
+      <!-- Left column - Main content -->
+      <div class="grid gap-4 sm:gap-6 lg:gap-8">
+        <GroupSummary />
+        <QuickAccess />
+        <RecentActivities />
+      </div>
+      
+      <!-- Right column - Sidebar widgets -->
+      <div class="grid gap-4 sm:gap-6 lg:gap-8">
+        <BalanceOverview />
+        <ReportOverview />
+      </div>
     </div>
   </div>
-</div>
 </template>

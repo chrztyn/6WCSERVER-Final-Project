@@ -27,7 +27,7 @@ const revertBalancesAfterExpenseDelete = async (groupId, memberShare, payorUsers
         
         if (memberShareAmount > 0) {
           const balance = await Balance.findOne({
-            group_id: groupId,
+            group_id: groupId._id,
             user_id: memberId,
             owed_to: payorId
           });
@@ -42,7 +42,7 @@ const revertBalancesAfterExpenseDelete = async (groupId, memberShare, payorUsers
           }
         } else {
           const balance = await Balance.findOne({
-            group_id: groupId,
+            group_id: groupId._id,
             user_id: payorId,
             owed_to: memberId
           });
