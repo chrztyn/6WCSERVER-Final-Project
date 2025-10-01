@@ -21,16 +21,17 @@ export default {
   data() {
     return {
       groups: [],
+      groupLeaveStatus: {},
       loading: false,
       error: null,
       showCreateForm: false,
       showConfirmOverlay: false,
-      groupToLeaveId: null
+      groupToLeaveId: null,
+      leaveValidationMessage: ''
     };
   },
 
   watch: {
-    // Fetch groups when overlay opens
     isOpen(newVal) {
       if (newVal) {
         this.fetchGroups();
@@ -59,7 +60,6 @@ export default {
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
-            // Token expired or invalid
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             this.$router.push('/login');
@@ -70,7 +70,6 @@ export default {
 
         const data = await response.json();
         
-        // Transform backend data to match frontend format
         this.groups = data.map(group => ({
           id: group._id,
           name: group.name,
@@ -79,6 +78,9 @@ export default {
           members: group.members,
           created_at: group.created_at
         }));
+
+        // Check leave eligibility for all groups
+        await this.checkLeaveEligibility();
 
         console.log('Groups loaded:', this.groups);
         
@@ -90,8 +92,59 @@ export default {
       }
     },
 
+    async checkLeaveEligibility() {
+      const token = localStorage.getItem('token');
+
+      for (const group of this.groups) {
+        try {
+          const response = await fetch(`http://localhost:3001/api/groups/${group.id}/can-leave`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            this.groupLeaveStatus[group.id] = {
+              canLeave: data.canLeave,
+              totalDebt: data.totalDebt,
+              totalOwed: data.totalOwed,
+              debtsDetails: data.debtsDetails,
+              owedDetails: data.owedDetails,
+              message: data.message
+            };
+          }
+        } catch (error) {
+          console.error(`Error checking leave eligibility for group ${group.id}:`, error);
+          this.groupLeaveStatus[group.id] = {
+            canLeave: true,
+            totalDebt: 0,
+            totalOwed: 0,
+            message: 'Could not verify leave status'
+          };
+        }
+      }
+    },
+
+    canLeaveGroup(groupId) {
+      return this.groupLeaveStatus[groupId]?.canLeave !== false;
+    },
+
+    hasOutstandingDebt(groupId) {
+      return !this.canLeaveGroup(groupId);
+    },
+
+    getDebtAmount(groupId) {
+      return this.groupLeaveStatus[groupId]?.totalDebt || 0;
+    },
+
+    getDebtDetails(groupId) {
+      return this.groupLeaveStatus[groupId]?.debtsDetails || [];
+    },
+
     async createGroup() {
-      // Open the create group form
       this.showCreateForm = true;
     },
 
@@ -100,7 +153,6 @@ export default {
     },
 
     onGroupCreated(newGroup) {
-      // Add the new group to the list
       const formattedGroup = {
         id: newGroup._id,
         name: newGroup.name,
@@ -110,14 +162,25 @@ export default {
         created_at: newGroup.created_at
       };
       
-      this.groups.unshift(formattedGroup); // Add to beginning of list
+      this.groups.unshift(formattedGroup);
+      this.groupLeaveStatus[formattedGroup.id] = {
+        canLeave: true,
+        totalDebt: 0,
+        totalOwed: 0,
+        message: 'No outstanding debts'
+      };
       this.showCreateForm = false;
       
       console.log('New group added to list:', formattedGroup);
     },
 
     showConfirmLeave(groupId) {
+      if (!this.canLeaveGroup(groupId)) {
+        return;
+      }
+      
       this.groupToLeaveId = groupId;
+      this.leaveValidationMessage = this.groupLeaveStatus[groupId]?.message || 'Are you sure you want to leave this group?';
       this.showConfirmOverlay = true;
     },
 
@@ -135,15 +198,24 @@ export default {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to leave group');
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to leave group');
+        }
+
+        const data = await response.json();
+        
+        // Show warning if others still owe user
+        if (data.warning) {
+          alert(data.warning);
         }
 
         this.groups = this.groups.filter(group => group.id !== groupId);
+        delete this.groupLeaveStatus[groupId];
         console.log('Successfully left the group');
 
       } catch (error) {
         console.error('Error leaving group:', error);
-        alert('Failed to leave group. Please try again.');
+        alert(error.message || 'Failed to leave group. Please try again.');
       } finally {
         this.closeConfirmOverlay();
       }
@@ -152,6 +224,7 @@ export default {
     closeConfirmOverlay() {
       this.showConfirmOverlay = false;
       this.groupToLeaveId = null;
+      this.leaveValidationMessage = '';
     },
 
     closeOverlay() {
@@ -165,6 +238,14 @@ export default {
 
     leaveGroup(groupId) {
       this.showConfirmLeave(groupId);
+    },
+
+    formatCurrency(amount) {
+      if (isNaN(amount)) return '₱0.00';
+      return `₱${Math.abs(amount).toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
     }
   }
 };
@@ -255,14 +336,38 @@ export default {
                     </svg>
                     {{ group.members?.length || 0 }} members
                   </div>
+                  
+                  <!-- Debt Warning with Details -->
+                  <div v-if="hasOutstandingDebt(group.id)" class="mt-2">
+                    <div class="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                      <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                      </svg>
+                      <span class="font-medium">You owe {{ formatCurrency(getDebtAmount(group.id)) }}</span>
+                    </div>
+                    
+                    <!-- Debt Details -->
+                    <div v-if="getDebtDetails(group.id).length > 0" class="mt-1 ml-4 text-xs text-gray-600">
+                      <div v-for="(debt, index) in getDebtDetails(group.id)" :key="index" class="flex items-center gap-1">
+                        <span>→</span>
+                        <span>{{ formatCurrency(debt.amount) }} to {{ debt.owedTo }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <!-- Leave Group Button -->
                 <div class="ml-3 flex-shrink-0">
                   <button 
                     @click.stop="leaveGroup(group.id)"
-                    class="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Leave Group"
+                    :disabled="hasOutstandingDebt(group.id)"
+                    :class="[
+                      'p-2 rounded-lg transition-colors',
+                      hasOutstandingDebt(group.id)
+                        ? 'text-gray-300 cursor-not-allowed opacity-50'
+                        : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                    ]"
+                    :title="hasOutstandingDebt(group.id) ? 'Clear your debts before leaving' : 'Leave Group'"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -305,7 +410,7 @@ export default {
     <ConfirmCardOverlay
       :isOpen="showConfirmOverlay"
       title="Leave Group"
-      message="Are you sure you want to leave this group? You won't be able to see group expenses or activities anymore."
+      :message="leaveValidationMessage"
       confirmText="Leave Group"
       cancelText="Cancel"
       confirmButtonClass="bg-red-500 hover:bg-red-600 text-white"
