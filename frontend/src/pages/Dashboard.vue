@@ -19,18 +19,18 @@ export default {
 
 <template>
   <div class="dashboard-container">
-    <!-- Responsive grid layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto">
+    <!-- Responsive grid layout that stretches -->
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 sm:gap-6 lg:gap-8 p-4 sm:p-6 lg:p-8">
       
       <!-- Left column - Main content -->
-      <div class="grid gap-4 sm:gap-6 lg:gap-8">
+      <div class="grid gap-4 sm:gap-6 lg:gap-8 lg:content-start">
         <GroupSummary />
         <QuickAccess />
         <RecentActivities />
       </div>
       
       <!-- Right column - Sidebar widgets -->
-      <div class="grid gap-4 sm:gap-6 lg:gap-8">
+      <div class="grid gap-4 sm:gap-6 lg:gap-8" style="grid-template-rows: 1fr 3fr;">
         <BalanceOverview />
         <ReportOverview />
       </div>

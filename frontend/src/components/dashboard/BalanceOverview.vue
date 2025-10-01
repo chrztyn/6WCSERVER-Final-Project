@@ -86,7 +86,7 @@
             
             <!-- Data state -->
             <div v-else class="grid gap-4">
-                <div class="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-4">
+                <div class="flex items-center h-11 justify-between rounded-lg border border-red-200 bg-red-50 p-4">
                     <div class="flex items-center gap-3">
                         <div class="h-2 w-2 rounded-full bg-red-500"></div>
                         <span class="text-gray-700 font-medium">You Owe</span>
@@ -94,7 +94,7 @@
                     <!-- Total amount user owes to others -->
                     <div class="font-bold text-red-600 text-lg">{{ formatCurrency(totalOwes) }}</div>
                 </div>
-                <div class="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-4">
+                <div class="flex items-center h-11 justify-between rounded-lg border border-green-200 bg-green-50 p-4">
                     <div class="flex items-center gap-3">
                         <div class="h-2 w-2 rounded-full bg-green-500"></div>
                         <span class="text-gray-700 font-medium">Owes You</span>
