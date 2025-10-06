@@ -10,7 +10,6 @@ const router = express.Router();
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = 'uploads/profiles';
-    // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -23,7 +22,6 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // Accept images only
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
@@ -34,7 +32,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }
 });
 
 // ================== USERS ===================
@@ -69,7 +67,6 @@ router.put('/profile', authMiddleware, upload.single('profile_picture'), async (
 
     // Handle profile picture upload
     if (req.file) {
-      // Delete old profile picture if it exists
       if (user.profile_picture) {
         const oldPath = path.join(__dirname, '..', user.profile_picture);
         if (fs.existsSync(oldPath)) {
@@ -156,5 +153,6 @@ router.get('/:userId/payment-methods', authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 module.exports = router;

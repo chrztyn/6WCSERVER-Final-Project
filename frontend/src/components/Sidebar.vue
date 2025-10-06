@@ -23,7 +23,7 @@ export default {
     watch: {
         '$route'() {
             this.updateActiveNav();
-            this.isMobileMenuOpen = false; // Close menu on route change
+            this.isMobileMenuOpen = false;
         }
     },
     methods: {
@@ -219,16 +219,6 @@ export default {
             
             <router-link 
                 class="flex items-center gap-3 rounded-lg px-4 py-3 transition-all font-medium"
-                :class="activeNav === 'profile' ? 'bg-[#EDF5FB] text-[#0761FE] border-r-2 border-[#0761FE]' : 'text-[#013DC0] hover:bg-[#EDF5FB] hover:text-[#0761FE]'"
-                to="/profile"
-                @click="handleProfileClick"
-            >
-                <img src="/Icons/blue profile.png" alt="Profile Icon" class="w-5 h-5"> 
-                Profile
-            </router-link>
-            
-            <router-link 
-                class="flex items-center gap-3 rounded-lg px-4 py-3 transition-all font-medium"
                 :class="activeNav === 'transaction' ? 'bg-[#EDF5FB] text-[#0761FE] border-r-2 border-[#0761FE]' : 'text-[#013DC0] hover:bg-[#EDF5FB] hover:text-[#0761FE]'"
                 to="/transaction"
                 @click="handleTransactionClick"
@@ -236,6 +226,17 @@ export default {
                 <img src="/Icons/blue history.png" alt="Profile Icon" class="w-5 h-5"> 
                 Transactions
             </router-link>
+
+            <router-link 
+                class="flex items-center gap-3 rounded-lg px-4 py-3 transition-all font-medium"
+                :class="activeNav === 'profile' ? 'bg-[#EDF5FB] text-[#0761FE] border-r-2 border-[#0761FE]' : 'text-[#013DC0] hover:bg-[#EDF5FB] hover:text-[#0761FE]'"
+                to="/profile"
+                @click="handleProfileClick"
+            >
+                <img src="/Icons/blue profile.png" alt="Profile Icon" class="w-5 h-5"> 
+                Profile
+            </router-link>
+
         </nav>
         
         <!-- Logout Button -->

@@ -5,6 +5,7 @@ const Groups = require('../models/groups');
 const Balance = require('../models/balance');
 const router = express.Router();
 const Expense = require('../models/expense');
+const TransactionHistory = require('../models/transaction');
 
 //  CREATE a group 
 router.post('/', authMiddleware, async (req, res) => {
@@ -25,7 +26,8 @@ router.post('/', authMiddleware, async (req, res) => {
       name,
       created_by: creator._id,
       members: memberIds,
-      description
+      description,
+      
     });
 
     const savedGroup = await group.save(); 
@@ -42,10 +44,20 @@ router.post('/', authMiddleware, async (req, res) => {
         }}
     );
 
+// ====== CREATE TRANSACTION HISTORY FOR GROUP CREATION ======
+    await TransactionHistory.createGroupCreatedTransaction(
+      creator._id,
+      savedGroup._id,
+      savedGroup.name,
+      creator.name,
+      memberIds
+    );
+
     const populatedGroup = await savedGroup.populate([
       { path: 'created_by', select: 'name email -_id' },
       { path: 'members', select: 'name email -_id' }
     ]);
+
     res.status(201).json(populatedGroup);
 
   } catch (err) {
@@ -105,13 +117,11 @@ router.get('/:id/can-leave', authMiddleware, async (req, res) => {
     const owedDetails = [];
 
     for (const balance of userBalances) {
-      // Skip balances less than 0.01 (treat as paid)
       if (balance.amount < 0.01) {
         continue;
       }
 
       if (balance.user_id.toString() === userId.toString()) {
-        // User owes this amount
         totalDebt += balance.amount;
         const owedToUser = await Users.findById(balance.owed_to).select('name email');
         debtsDetails.push({
@@ -120,7 +130,6 @@ router.get('/:id/can-leave', authMiddleware, async (req, res) => {
           owedToEmail: owedToUser ? owedToUser.email : 'Unknown'
         });
       } else if (balance.owed_to.toString() === userId.toString()) {
-        // Someone owes user this amount
         totalOwed += balance.amount;
         const debtor = await Users.findById(balance.user_id).select('name email');
         owedDetails.push({
@@ -190,9 +199,7 @@ router.get('/:id/balances', authMiddleware, async (req, res) => {
       const userId = balance.user_id._id.toString();
       const owedToId = balance.owed_to._id.toString();
       
-      // User owes money (negative balance)
       memberBalances[userId] -= balance.amount;
-      // OwedTo is owed money (positive balance)
       memberBalances[owedToId] += balance.amount;
     });
 
@@ -222,12 +229,13 @@ router.delete('/:id/leave', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Group not found' });
     }
 
-    // Check if user has any unpaid debts in this group (over 0.01)
+    const leavingUser = await Users.findById(userId).select('name email');
+
     const unpaidDebts = await Balance.find({
       group_id: groupId,
       user_id: userId,
       status: 'unpaid',
-      amount: { $gte: 0.01 } // Only consider debts >= 0.01
+      amount: { $gte: 0.01 }
     });
 
     if (unpaidDebts.length > 0) {
@@ -239,27 +247,55 @@ router.delete('/:id/leave', authMiddleware, async (req, res) => {
       });
     }
 
-    // Check if others owe this user (optional warning)
     const unpaidOwed = await Balance.find({
       group_id: groupId,
       owed_to: userId,
       status: 'unpaid',
-      amount: { $gte: 0.01 } // Only consider amounts >= 0.01
+      amount: { $gte: 0.01 }
     });
 
-    // Remove user from group's members array
     group.members = group.members.filter(
       (memberId) => memberId.toString() !== userId.toString()
     );
     await group.save();
 
-    // Remove group from user's joined_groups array by group_id
     await Users.findByIdAndUpdate(userId, {
       $pull: { joined_groups: { group_id: group._id } }
     });
 
+    // ====== CREATE TRANSACTION HISTORY ENTRIES ======
+    const TransactionHistory = require('../models/transaction');
+    
+    await TransactionHistory.createGroupLeftTransaction(
+      userId,
+      group._id,
+      group.name,
+      leavingUser.name
+    );
+    
+    if (group.members.length > 0) {
+      const memberTransactions = group.members.map(memberId => ({
+        transaction_type: 'group_left',
+        payer_id: userId,
+        receiver_id: memberId,
+        group_id: group._id,
+        amount: 0,
+        description: `${leavingUser.name} left ${group.name}`,
+        status: 'completed',
+        transaction_date: new Date(),
+        created_by: userId,
+        metadata: {
+          group_name: group.name,
+          user_name: leavingUser.name
+        }
+      }));
+      
+      await TransactionHistory.insertMany(memberTransactions);
+    }
+
     const response = { 
-      message: 'Left group successfully'
+      message: 'Left group successfully',
+      groupName: group.name
     };
 
     if (unpaidOwed.length > 0) {
@@ -286,7 +322,6 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Group not found' });
         }
 
-        // Find the users to be added from the provided emails
         const usersToAdd = await Users.find({ email: { $in: members } });
         const newMemberIds = usersToAdd.map(u => u._id.toString());
         const existingMemberIds = group.members.map(m => m.toString());
@@ -294,7 +329,6 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
         const addedMemberIds = [];
         const notFoundEmails = [];
 
-        // Add valid, new users to the group
         for (const user of usersToAdd) {
             if (!existingMemberIds.includes(user._id.toString())) {
                 group.members.push(user._id);
@@ -316,9 +350,50 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
                     }
                 }
             );
+
+            // ====== CREATE TRANSACTION HISTORY FOR GROUP_JOINED ======
+            const TransactionHistory = require('../models/transaction');
+            
+            // Create transaction entry for each new member
+            for (const userId of addedMemberIds) {
+                const user = await Users.findById(userId).select('name');
+                
+                await TransactionHistory.create({
+                    transaction_type: 'group_joined',
+                    payer_id: userId,
+                    receiver_id: null,
+                    group_id: group._id,
+                    amount: 0,
+                    description: `${user.name} joined ${group.name}`,
+                    status: 'completed',
+                    transaction_date: new Date(),
+                    created_by: req.user._id,
+                    metadata: {
+                        group_name: group.name,
+                        user_name: user.name
+                    }
+                });
+
+                for (const existingMemberId of existingMemberIds) {
+                    await TransactionHistory.create({
+                        transaction_type: 'group_joined',
+                        payer_id: userId,
+                        receiver_id: existingMemberId,
+                        group_id: group._id,
+                        amount: 0,
+                        description: `${user.name} joined ${group.name}`,
+                        status: 'completed',
+                        transaction_date: new Date(),
+                        created_by: req.user._id,
+                        metadata: {
+                            group_name: group.name,
+                            user_name: user.name
+                        }
+                    });
+                }
+            }
         }
 
-        // Save the updated group document
         await group.save();
 
         const addedUsers = await Users.find({ _id: { $in: addedMemberIds } }).select('name email');

@@ -13,12 +13,10 @@ export default {
   },
   methods: {
     closeGroupList() {
-      // Navigate back to dashboard when overlay is closed
       this.$router.push('/dashboard');
     },
     selectGroup(group) {
       console.log('Selected group:', group);
-      // Navigate to the specific group expense list
       this.$router.push(`/group/${group.id}`);
       this.closeGroupList();
     }

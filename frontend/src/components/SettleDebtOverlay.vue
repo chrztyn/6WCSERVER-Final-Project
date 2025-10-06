@@ -114,11 +114,18 @@ export default {
             );
 
             userDebts.forEach(debt => {
+              console.log('Processing debt:', debt);
+              console.log('Group members:', group.members);
+              
+              const creditor = group.members.find(member => member.name === debt.Creditor);
+              console.log('Found creditor:', creditor);
+              
               allDebts.push({
                 id: `${group._id}_${debt.Creditor}`,
                 groupId: group._id,
                 groupName: group.name,
                 creditorName: debt.Creditor,
+                creditorId: debt.CreditorId,
                 amount: debt.Amount,
                 currency: 'PHP'
               });

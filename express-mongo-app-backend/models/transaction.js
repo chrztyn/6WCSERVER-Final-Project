@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const transactionHistorySchema = new mongoose.Schema({
   transaction_type: {
     type: String,
-    enum: ['expense', 'payment', 'settlement', 'expense_completion', 'expense_deletion'],
+    enum: ['expense', 'payment', 'settlement', 'expense_completion', 'expense_deletion', 'group_left', 'group_joined', 'group_created'],
     required: true,
     index: true
   },
@@ -29,19 +29,19 @@ const transactionHistorySchema = new mongoose.Schema({
   group_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
-    required: true,
     index: true
   },
   
   amount: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
+    default: 0
   },
   
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'failed', 'cancelled'],
+    enum: ['pending', 'confirmed', 'failed', 'cancelled', 'completed'],
     default: 'confirmed',
     index: true
   },
@@ -60,12 +60,12 @@ const transactionHistorySchema = new mongoose.Schema({
   metadata: {
     confirmation_code: String,
     expense_split_details: {
-    user_id: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    amount: Number,
-    percentage: Number
+      user_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      amount: Number,
+      percentage: Number
     },
     total_expense_amount: Number,
     number_of_payors: Number,
@@ -82,7 +82,9 @@ const transactionHistorySchema = new mongoose.Schema({
       original_debt: Number,
       remaining_debt: Number,
       settlement_percentage: Number
-    }
+    },
+    group_name: String,
+    user_name: String
   },
 
   transaction_date: {
@@ -112,9 +114,15 @@ const transactionHistorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+
+  read: {
+    type: Boolean,
+    default: false
+  },
+  
 }, {
   collection: 'transaction_history'
-  });
+});
 
 transactionHistorySchema.index({ group_id: 1, transaction_date: -1 });
 transactionHistorySchema.index({ payer_id: 1, transaction_date: -1 });
@@ -186,6 +194,56 @@ transactionHistorySchema.statics.createFromPayment = async function(payment, cre
   }
 };
 
+transactionHistorySchema.statics.createGroupLeftTransaction = async function(userId, groupId, groupName, userName) {
+  try {
+    const transaction_history = new this({
+      transaction_type: 'group_left',
+      payer_id: userId,
+      receiver_id: null,
+      group_id: groupId,
+      amount: 0,
+      description: `${userName} left ${groupName}`,
+      status: 'completed',
+      transaction_date: new Date(),
+      created_by: userId,
+      metadata: {
+        group_name: groupName,
+        user_name: userName
+      }
+    });
+    
+    return await transaction_history.save();
+  } catch (error) {
+    throw new Error(`Failed to create group_left transaction: ${error.message}`);
+  }
+};
+
+transactionHistorySchema.statics.createGroupCreatedTransaction = async function(creatorId, groupId, groupName, creatorName, memberIds) {
+  try {
+    const memberTransactions = memberIds.map(memberId => ({
+      transaction_type: 'group_created',
+      payer_id: creatorId,
+      receiver_id: memberId,
+      group_id: groupId,
+      amount: 0,
+      description: `${creatorName} created ${groupName}`,
+      status: 'completed',
+      transaction_date: new Date(),
+      created_by: creatorId,
+      metadata: {
+        group_name: groupName,
+        user_name: creatorName
+      }
+    }));
+    
+    await this.insertMany(memberTransactions);
+    
+    return true;
+  } catch (error) {
+    throw new Error(`Failed to create group_created transaction: ${error.message}`);
+  }
+};
+
 transactionHistorySchema.methods.getRelatedTransactions = async function() {
   return await this.constructor.find({
     $or: [
@@ -206,7 +264,7 @@ transactionHistorySchema.methods.getRelatedTransactions = async function() {
 
 // Virtual for formatted amount
 transactionHistorySchema.virtual('formatted_amount').get(function() {
-  return `${this.currency} ${this.amount.toFixed(2)}`;
+  return `₱${this.amount.toFixed(2)}`;
 });
 
 // Virtual for transaction age

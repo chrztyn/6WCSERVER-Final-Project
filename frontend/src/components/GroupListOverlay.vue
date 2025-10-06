@@ -280,7 +280,7 @@ export default {
       </div>
 
       <!-- Content -->
-      <div class="p-6 h-full flex flex-col">
+      <div class="p-6 flex flex-col h-[calc(100%-88px)] overflow-hidden">
         <div class="mb-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">My Groups</h3>
           

@@ -4,22 +4,22 @@ const Users = require('../models/users');
 const Balance = require('../models/balance');
 const router = express.Router();
 
-
 // VIEW summary of balances of the user
 router.get('/summary/me', authMiddleware, async (req, res) => {
   try {
     const userId = req.user._id.toString();
 
+    // CHANGED: Removed -_id to include the ID field
     const balancesAsDebtor = await Balance.find({ user_id: userId })
       .populate([
-        { path: 'owed_to', select: 'name email -_id' },
-        { path: 'group_id', select: 'name description -_id' }
+        { path: 'owed_to', select: 'name email' },  
+        { path: 'group_id', select: 'name description' }  
     ]);
 
     const balancesAsCreditor = await Balance.find({ owed_to: userId })
       .populate([
-        { path: 'user_id', select: 'name email -_id' },
-        { path: 'group_id', select: 'name description -_id' }
+        { path: 'user_id', select: 'name email' },  
+        { path: 'group_id', select: 'name description' }  
     ]);
 
     let owes = 0;
@@ -29,7 +29,6 @@ router.get('/summary/me', authMiddleware, async (req, res) => {
     balancesAsCreditor.forEach(b => { owed += b.amount; });
 
     const net = owed - owes;
-
 
     let groupSummary = {};
 
@@ -57,7 +56,19 @@ router.get('/summary/me', authMiddleware, async (req, res) => {
         Debts: groupSummary[group].owes,
         Credits: groupSummary[group].owed,
         Net: groupSummary[group].owed - groupSummary[group].owes
-      }))
+      })),
+      // ADD: Detailed debts with creditor IDs
+      debts: balancesAsDebtor
+        .filter(b => b.amount > 0)
+        .map(b => ({
+          _id: b._id,
+          groupId: b.group_id?._id,
+          groupName: b.group_id?.name || 'Unknown Group',
+          creditorId: b.owed_to?._id, 
+          creditorName: b.owed_to?.name || 'Unknown',
+          amount: b.amount,
+          currency: 'PHP'
+        }))
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch global balance summary', details: err.message });
@@ -77,12 +88,14 @@ router.get('/summary/:groupId', authMiddleware, async (req, res) => {
     let summary = [];
 
     for (let bal of balances) {
-      const debtor = await Users.findById(bal.user_id).select('name email -_id');
-      const creditor = await Users.findById(bal.owed_to).select('name email -_id');
+      const debtor = await Users.findById(bal.user_id).select('_id name email');  
+      const creditor = await Users.findById(bal.owed_to).select('_id name email');  
 
       if (debtor && creditor) {
         summary.push({
+          DebtorId: debtor._id,        
           Debtor: debtor.name,
+          CreditorId: creditor._id,    
           Creditor: creditor.name,
           Amount: bal.amount
         });
@@ -94,6 +107,5 @@ router.get('/summary/:groupId', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch balance summary', details: err.message });
   }
 });
-
 
 module.exports = router;

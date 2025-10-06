@@ -40,18 +40,6 @@ export default {
       }
     },
     
-    handleNotificationClick(notification) {
-      console.log('Notification clicked:', notification);
-      this.showNotifications = false;
-      
-      // Navigate based on notification type
-      if (notification.group_id) {
-        this.$router.push(`/group/${notification.group_id}`);
-      } else if (notification._id) {
-        this.$router.push(`/transaction/${notification._id}`);
-      }
-    },
-    
     async handleSearch() {
       if (!this.searchQuery.trim()) {
         this.searchResults = [];
@@ -105,7 +93,6 @@ export default {
     async startNotificationPolling() {
       await this.fetchUnreadCount();
       
-      // Poll every 30 seconds for unread count
       this.notificationPollingInterval = setInterval(() => {
         this.fetchUnreadCount();
       }, 3000);
@@ -118,21 +105,56 @@ export default {
       }
     },
 
-    handleNotificationClick(notificationData) {
-      console.log('Notification clicked:', notificationData);
+    async handleNotificationClick(notificationData) {
+      console.log('Raw localStorage user:', localStorage.getItem('user'));
+      
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('Parsed currentUser:', currentUser);
+      
+      const currentUserId = currentUser._id || currentUser.id;
+      
+      console.log('=== Notification Click Debug ===');
+      console.log('Data received:', notificationData);
+      console.log('Type:', notificationData.type);
+      console.log('ID:', notificationData.id);
+      console.log('Activity type:', notificationData.activityType);
+      console.log('user ID from notification:', notificationData.userId);
+      console.log('current user ID:', currentUserId);
+      
       this.showNotifications = false;
       
-      // Navigate based on notification type
       if (notificationData.type === 'transaction') {
-        // Redirect to transaction details modal
         this.$router.push(`/transaction/${notificationData.id}`);
-      } else if (notificationData.type === 'group') {
-        // Redirect to group page
-        this.$router.push(`/group/${notificationData.id}`);
-      } else {
-        // Fallback: redirect to transaction page
-        this.$router.push('/transaction');
+        return;
+      } 
+      
+      if (notificationData.type === 'group') {
+        if (notificationData.activityType === 'group_left' && notificationData.userId === currentUserId) {
+          console.log('Current User left this group, not navigating');
+          return;
+        }
+        
+        // For all other cases, check if user still has access to the group
+        try {
+          const token = localStorage.getItem('token');
+          // FIXED: Changed from localhost:5173 to localhost:3001
+          const response = await axios.get(`http://localhost:3001/api/groups/${notificationData.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          console.log('Group API Response:', response.data);
+          this.$router.push(`/group/${notificationData.id}`);
+          
+        } catch (error) {
+          console.log('Cannot access group:', error.response?.status, error);
+          // Do nothing - user doesn't have access to this group anymore
+          return;
+        }
+        return;
       }
+      
+      console.log('Unknown notification type, navigating to transaction list');
+      this.$router.push('/transaction');
     },
     
     async fetchUnreadCount() {

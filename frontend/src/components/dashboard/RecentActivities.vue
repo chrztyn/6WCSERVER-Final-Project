@@ -1,6 +1,6 @@
 <script>
 import { Card } from "@/components/ui/card";
-import api from '@/services/api.js';
+import axios from 'axios';
 
 export default {
     name: "RecentActivities",
@@ -9,11 +9,16 @@ export default {
         return {
             activities: [],
             loading: true,
-            error: null
+            error: null,
+            pollingInterval: null
         };
     },
     async mounted() {
         await this.fetchRecentActivities();
+        this.startPolling();
+    },
+    beforeUnmount() {
+        this.stopPolling();
     },
     methods: {
         async fetchRecentActivities() {
@@ -21,8 +26,32 @@ export default {
                 this.loading = true;
                 this.error = null;
                 
-                const response = await api.get('http://localhost:3001/api/reports/activities?limit=5');
-                this.activities = response.data.activities;
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                let transactions = response.data.transactions || [];
+                
+                const seenGroupEvents = new Set();
+                const deduplicatedTransactions = [];
+                
+                for (const transaction of transactions) {
+                    if (transaction.transaction_type === 'group_left' || transaction.transaction_type === 'group_joined' ||transaction.transaction_type === 'group_created') {
+                        const timestamp = new Date(transaction.transaction_date || transaction.created_at).getTime();
+                        const roundedTime = Math.floor(timestamp / 60000);
+                        const eventKey = `${transaction.transaction_type}-${transaction.payer_id?._id || transaction.payer_id}-${transaction.group_id?._id || transaction.group_id}-${roundedTime}`;
+
+                        if (seenGroupEvents.has(eventKey)) {
+                            continue;
+                        }
+                        seenGroupEvents.add(eventKey);
+                    }
+                    
+                    deduplicatedTransactions.push(transaction);
+                }
+
+                this.activities = deduplicatedTransactions.slice(0, 5).map(transaction => this.transformToActivity(transaction));
                 
             } catch (error) {
                 console.error('Error fetching recent activities:', error);
@@ -32,28 +61,175 @@ export default {
                 this.loading = false;
             }
         },
-        getActivityIcon(type) {
-            const icons = {
-                'settlement': 'green',
-                'expense_added': 'red',
-                'group_joined': 'blue',
-                'group_created': 'purple'
-            };
-            return icons[type] || 'gray';
-        },
-        getActivityDescription(activity) {
-            switch (activity.type) {
-                case 'settlement':
-                    return `${activity.group}`;
-                case 'expense_added':
-                    return `${activity.group}`;
-                case 'group_joined':
-                case 'group_created':
-                    return activity.description;
-                default:
-                    return activity.description;
+        
+        transformToActivity(transaction) {
+            const color = this.getActivityColor(transaction.transaction_type);
+            const title = this.getActivityTitle(transaction);
+            const description = transaction.description;
+            const timeAgo = this.getTimeAgo(transaction.transaction_date || transaction.created_at);
+
+            let groupId = null;
+            let payerId = null;
+
+            if (transaction.group_id) {
+                if (typeof transaction.group_id === 'object' && transaction.group_id._id) {
+                    groupId = transaction.group_id._id;
+                } else if (typeof transaction.group_id === 'string') {
+                    groupId = transaction.group_id;
+                }
             }
-        }
+
+            if (transaction.payer_id) {
+                if (typeof transaction.payer_id === 'object' && transaction.payer_id._id) {
+                    payerId = transaction.payer_id._id;
+                } else if (typeof transaction.payer_id === 'string') {
+                    payerId = transaction.payer_id;
+                }
+            }
+            
+            return {
+                _id: transaction._id,
+                type: transaction.transaction_type,
+                color: color,
+                title: title,
+                description: description,
+                timeAgo: timeAgo,
+                group_id: groupId, 
+                payer_id: payerId,
+                transaction_date: transaction.transaction_date || transaction.created_at
+            };
+        },
+        
+        getActivityTitle(transaction) {
+            const type = transaction.transaction_type;
+            const titles = {
+                'expense': 'New Expense',
+                'payment': 'Payment Made',
+                'settlement': 'Settlement',
+                'group_joined': 'Group Joined',
+                'group_left': 'Left Group',
+                'group_created': 'Group Created',
+                'expense_completion': 'Expense Completed',
+                'expense_deletion': 'Expense Deleted'
+            };
+            return titles[type] || 'Activity';
+        },
+        
+        getActivityColor(type) {
+            const colors = {
+                'settlement': 'green',
+                'payment': 'green',
+                'expense': 'red',
+                'expense_completion': 'green',
+                'expense_deletion': 'orange',
+                'group_joined': 'blue',
+                'group_created': 'purple',
+                'group_left': 'orange'
+            };
+            return colors[type] || 'gray';
+        },
+        
+        getTimeAgo(date) {
+            const now = new Date();
+            const past = new Date(date);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+        
+        startPolling() {
+            this.pollingInterval = setInterval(() => {
+                this.fetchRecentActivitiesSilently();
+            }, 30000);
+        },
+        
+        stopPolling() {
+            if (this.pollingInterval) {
+                clearInterval(this.pollingInterval);
+                this.pollingInterval = null;
+            }
+        },
+        
+        async fetchRecentActivitiesSilently() {
+            try {
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                let transactions = response.data.transactions || [];
+
+                const seenGroupEvents = new Set();
+                const deduplicatedTransactions = [];
+                
+                for (const transaction of transactions) {
+                    if (transaction.transaction_type === 'group_left' || transaction.transaction_type === 'group_joined' || transaction.transaction_type === 'group_created') {
+                        const timestamp = new Date(transaction.transaction_date || transaction.created_at).getTime();
+                        const roundedTime = Math.floor(timestamp / 60000);
+                        const eventKey = `${transaction.transaction_type}-${transaction.payer_id?._id || transaction.payer_id}-${transaction.group_id?._id || transaction.group_id}-${roundedTime}`;
+
+                        if (seenGroupEvents.has(eventKey)) {
+                            continue;
+                        }
+                        seenGroupEvents.add(eventKey);
+                    }
+                    
+                    deduplicatedTransactions.push(transaction);
+                }
+                
+                this.activities = deduplicatedTransactions.slice(0, 5).map(transaction => this.transformToActivity(transaction));
+            } catch (error) {
+                console.error('Silent fetch error:', error);
+            }
+        },
+
+        handleActivityClick(activity) {
+            const groupTypes = ['group_created', 'group_joined', 'group_left'];
+            const transactionTypes = ['settlement', 'payment', 'expense', 'expense_completion', 'expense_deletion'];
+
+            console.log('Activity clicked:', activity);
+            console.log('Payer ID:', activity.payer_id);
+            
+            let userId = null;
+            if (activity.payer_id) {
+                userId = typeof activity.payer_id === 'object' ? activity.payer_id._id : activity.payer_id;
+            }
+            
+            console.log('Extracted userId:', userId);
+
+            if (groupTypes.includes(activity.type) && activity.group_id) {
+                this.$emit("activity-click", {
+                    type: "group",
+                    id: activity.group_id,
+                    activityType: activity.type,
+                    userId: userId 
+                });
+            } else if (transactionTypes.includes(activity.type) && activity._id) {
+                this.$emit("activity-click", {
+                    type: "transaction",
+                    id: activity._id
+                });
+            } else {
+                const id = activity.group_id || activity._id;
+                if (id) {
+                    this.$emit("activity-click", {
+                        type: activity.group_id ? "group" : "transaction",
+                        id,
+                        activityType: activity.type,
+                        userId: userId 
+                    });
+                } else {
+                    console.warn('No valid ID found for activity:', activity);
+                }
+            }
+        },
     }
 };
 </script>
@@ -99,8 +275,9 @@ export default {
         <div v-else class="grid gap-4">
             <div 
                 v-for="activity in activities" 
-                :key="`${activity.type}-${activity.timestamp}`"
-                class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                :key="`${activity.type}-${activity._id}`"
+                class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                @click="handleActivityClick(activity)"
             >
                 <div 
                     class="mt-1 h-3 w-3 rounded-full flex-shrink-0"
@@ -109,12 +286,13 @@ export default {
                         'bg-red-500': activity.color === 'red',
                         'bg-blue-500': activity.color === 'blue',
                         'bg-purple-500': activity.color === 'purple',
-                        'bg-gray-500': !['green', 'red', 'blue', 'purple'].includes(activity.color)
+                        'bg-orange-500': activity.color === 'orange',
+                        'bg-gray-500': !['green', 'red', 'blue', 'purple', 'orange'].includes(activity.color)
                     }"
                 ></div>
                 <div class="flex-1 min-w-0">
                     <div class="font-semibold text-[#013DC0] text-sm">{{ activity.title }}</div> 
-                    <div class="text-gray-500 text-xs">{{ getActivityDescription(activity) }}</div>
+                    <div class="text-gray-500 text-xs truncate">{{ activity.description }}</div>
                 </div>
                 <div class="text-gray-400 text-xs flex-shrink-0">{{ activity.timeAgo }}</div>
             </div>

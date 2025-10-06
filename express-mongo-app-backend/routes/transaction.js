@@ -1,19 +1,26 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const TransactionHistory = require('../models/transaction');
+const Groups = require('../models/groups');
 const router = express.Router();
+const mongoose = require('mongoose');
 
-// GET recent transactions (for notifications)
+// GET recent transactions
 router.get('/recent', authMiddleware, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const userId = req.user._id;
-
+    
+    // Get all groups the user is a member of
+    const userGroups = await Groups.find({ members: userId }).select('_id');
+    const groupIds = userGroups.map(g => g._id);
+    
     const transactions = await TransactionHistory.find({
       $or: [
         { payer_id: userId },
         { receiver_id: userId },
-        { created_by: userId }
+        { created_by: userId },
+        { group_id: { $in: groupIds } } 
       ],
       status: { $ne: 'cancelled' }
     })
@@ -37,12 +44,18 @@ router.get('/', authMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
+    // Get all groups the user is a member of
+    const userGroups = await Groups.find({ members: req.user._id }).select('_id');
+    const groupIds = userGroups.map(g => g._id);
+    
     const filter = {
       $or: [
         { payer_id: req.user._id },
         { receiver_id: req.user._id },
-        { created_by: req.user._id }
-      ]
+        { created_by: req.user._id },
+        { group_id: { $in: groupIds } } 
+      ],
+      transaction_type: { $nin: ['group_created', 'group_joined', 'group_left'] }
     };
 
     if (req.query.group_id) {
@@ -109,10 +122,22 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     // Check if user has access to this transaction
     const userId = req.user._id.toString();
+    
+    // Check if user is in the transaction's group
+    let hasGroupAccess = false;
+    if (transaction.group_id) {
+      const groupId = transaction.group_id._id ? transaction.group_id._id : transaction.group_id;
+      const group = await Groups.findById(groupId);
+      if (group && group.members.some(m => m.toString() === userId)) {
+        hasGroupAccess = true;
+      }
+    }
+    
     const hasAccess = 
       transaction.payer_id?._id.toString() === userId ||
       transaction.receiver_id?._id.toString() === userId ||
-      transaction.created_by?._id.toString() === userId;
+      transaction.created_by?._id.toString() === userId ||
+      hasGroupAccess;
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Access denied' });
@@ -128,14 +153,20 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // GET transaction statistics/summary
 router.get('/stats/summary', authMiddleware, async (req, res) => {
   try {
-    const mongoose = require('mongoose');
     const userId = new mongoose.Types.ObjectId(req.user._id);
+    
+    // Get all groups the user is a member of
+    const userGroups = await Groups.find({ members: userId }).select('_id');
+    const groupIds = userGroups.map(g => g._id);
+    
     const filter = {
       $or: [
         { payer_id: userId },
-        { receiver_id: userId }
+        { receiver_id: userId },
+        { group_id: { $in: groupIds } }
       ],
-      status: 'confirmed'
+      status: 'confirmed',
+      transaction_type: { $nin: ['group_created', 'group_joined', 'group_left'] }
     };
 
     // Add date range if provided
@@ -267,6 +298,28 @@ router.get('/group/:groupId', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Error fetching group transactions:', err);
     res.status(500).json({ error: 'Failed to fetch group transactions', details: err.message });
+  }
+});
+
+// PATCH Notification to read from unread
+router.patch("/:id/read", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const transaction = await TransactionHistory.findByIdAndUpdate(
+      id,
+      { $set: { read: true } },
+      { new: true }
+    );
+
+    if (!transaction) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+
+    res.json({ success: true, transaction });
+  } catch (error) {
+    console.error("Error marking transaction as read:", error);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

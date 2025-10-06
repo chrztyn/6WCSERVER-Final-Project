@@ -202,7 +202,6 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
       console.log('Transaction history created for settlement:', newPayment._id);
     } catch (historyError) {
       console.error('Failed to create transaction history for settlement:', historyError.message);
-      // Continue with settlement processing even if history fails
     }
 
     res.status(201).json({

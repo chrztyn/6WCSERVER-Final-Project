@@ -6,196 +6,210 @@ export default {
   data() {
     return {
       notifications: [],
-      isLoading: false,
-      pollingInterval: null,
-      lastNotificationCount: 0
+      loading: true
     };
   },
-  async mounted() {
-    await this.fetchNotifications();
-    this.startPolling();
-  },
-  beforeUnmount() {
-    this.stopPolling();
+  mounted() {
+    this.fetchNotifications();
   },
   methods: {
     async fetchNotifications() {
-      this.isLoading = true;
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=10', {
+        const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        const newNotifications = response.data.transactions || [];
+        let transactions = response.data.transactions || [];
         
-        // Check if there are new notifications
-        if (newNotifications.length > this.lastNotificationCount && this.lastNotificationCount > 0) {
-          this.playNotificationSound();
+        const seenGroupEvents = new Set();
+        const deduplicatedTransactions = [];
+        
+        for (const transaction of transactions) {
+          if (transaction.transaction_type === 'group_left' || transaction.transaction_type === 'group_joined' || transaction.transaction_type === 'group_created') {
+            const timestamp = new Date(transaction.transaction_date || transaction.created_at).getTime();
+            const roundedTime = Math.floor(timestamp / 60000);
+            const eventKey = `${transaction.transaction_type}-${transaction.payer_id?._id || transaction.payer_id}-${transaction.group_id?._id || transaction.group_id}-${roundedTime}`;
+
+            if (seenGroupEvents.has(eventKey)) {
+              continue;
+            }
+            seenGroupEvents.add(eventKey);
+          }
+          
+          deduplicatedTransactions.push(transaction);
         }
         
-        this.notifications = newNotifications;
-        this.lastNotificationCount = newNotifications.length;
-        
-        // Calculate unread count
-        const unreadCount = newNotifications.filter(n => !n.read).length;
+        this.notifications = deduplicatedTransactions.slice(0, 10);
+        const unreadCount = this.notifications.filter(n => !n.read).length;
         this.$emit('update:unread-count', unreadCount);
+        
       } catch (err) {
         console.error('Error fetching notifications:', err);
       } finally {
-        this.isLoading = false;
+        this.loading = false;
       }
     },
     
-    startPolling() {
-      // Poll every 10 seconds (10000ms)
-      this.pollingInterval = setInterval(() => {
-        this.fetchNotifications();
-      }, 10000);
+    getNotificationIcon(type) {
+      const icons = {
+        'settlement': '✅',
+        'payment': '💳',
+        'expense': '💰',
+        'expense_added': '💰',
+        'group_joined': '👥',
+        'group_created': '🎉',
+        'group_left': '👋',
+        'refund': '↩️'
+      };
+      return icons[type] || '📢';
     },
     
-    stopPolling() {
-      if (this.pollingInterval) {
-        clearInterval(this.pollingInterval);
-        this.pollingInterval = null;
+    getNotificationColor(type) {
+      const colors = {
+        'settlement': 'text-green-600',
+        'payment': 'text-green-600',
+        'expense': 'text-red-600',
+        'expense_added': 'text-red-600',
+        'group_joined': 'text-blue-600',
+        'group_created': 'text-purple-600',
+        'group_left': 'text-orange-600',
+        'refund': 'text-yellow-600'
+      };
+      return colors[type] || 'text-gray-600';
+    },
+    
+    async markAsRead(notification) {
+      try {
+        const token = localStorage.getItem('token');
+        await axios.patch(
+          `http://localhost:3001/api/transactions/${notification._id}/read`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        notification.read = true;
+        const unreadCount = this.notifications.filter(n => !n.read).length;
+        this.$emit('update:unread-count', unreadCount);
+        
+      } catch (err) {
+        console.error('Error marking notification as read:', err);
       }
-    },
-    
-    playNotificationSound() {
-      const audio = new Audio('/sounds/notification.mp3');
-      audio.volume = 0.5; // 50% volume
-      audio.play().catch(err => {
-        console.log('Could not play notification sound:', err);
-      });
     },
     
     handleNotificationClick(notification) {
-      console.log('Notification clicked:', notification);
+      console.log('Full notification object:', notification);
+      console.log('notification.transaction_type:', notification.transaction_type);
+      console.log('notification.group_id:', notification.group_id);
       
-      // Navigate based on transaction type and context
-      if (notification.transaction_type === 'expense') {
-        // For expenses, redirect to the transaction details modal
-        if (notification._id) {
-          this.$emit('notification-click', { 
-            type: 'transaction', 
-            id: notification._id 
-          });
-        }
-      } else if (notification.transaction_type === 'payment' || notification.transaction_type === 'settlement') {
-        // For payments and settlements, redirect to transaction details modal
-        if (notification._id) {
-          this.$emit('notification-click', { 
-            type: 'transaction', 
-            id: notification._id 
-          });
-        }
-      } else if (notification.group_id) {
-        // If it's a group-related notification, redirect to the group
-        this.$emit('notification-click', { 
-          type: 'group', 
-          id: notification.group_id._id || notification.group_id 
+      this.markAsRead(notification);
+      
+      const groupTypes = ['group_created', 'group_joined', 'group_left', 'expense_added'];
+      const transactionTypes = ['settlement', 'payment', 'expense_completion', 'expense_deletion'];
+      
+      // Use transaction_type instead of type
+      const notificationType = notification.transaction_type;
+      
+      console.log('Is group type?', groupTypes.includes(notificationType));
+      console.log('Has group_id?', !!notification.group_id);
+      
+      // Extract group ID (could be object or string)
+      let groupId = null;
+      if (notification.group_id) {
+        groupId = typeof notification.group_id === 'object' ? notification.group_id._id : notification.group_id;
+      }
+      console.log('Extracted groupId:', groupId);
+      
+      // Extract user ID from the notification
+      let userId = null;
+      if (notification.user_id) {
+        userId = typeof notification.user_id === 'object' ? notification.user_id._id : notification.user_id;
+      } else if (notification.payer_id) {
+        userId = typeof notification.payer_id === 'object' ? notification.payer_id._id : notification.payer_id;
+      }
+      
+      console.log('Extracted userId from notification:', userId);
+      
+      if (groupTypes.includes(notificationType) && groupId) {
+        console.log('Emitting group notification with ID:', groupId);
+        this.$emit('notification-click', {
+          type: 'group',
+          id: groupId,
+          activityType: notificationType,  // Pass the transaction_type
+          userId: userId
+        });
+      } else if (transactionTypes.includes(notificationType) && notification._id) {
+        console.log('Emitting transaction notification');
+        this.$emit('notification-click', {
+          type: 'transaction',
+          id: notification._id
         });
       } else {
-        // Default: redirect to transaction page
-        this.$emit('notification-click', { 
-          type: 'transaction', 
-          id: notification._id 
-        });
+        console.log('Fallback emission');
+        const id = groupId || notification._id;
+        if (id) {
+          this.$emit('notification-click', {
+            type: groupId ? 'group' : 'transaction',
+            id,
+            activityType: notificationType,
+            userId: userId
+          });
+        } else {
+          console.warn('No valid ID found for notification:', notification);
+        }
       }
     },
     
     handleViewAll() {
       this.$emit('view-all');
-    },
-    
-    formatDate(date) {
-      const now = new Date();
-      const notifDate = new Date(date);
-      const diffMs = now - notifDate;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-      
-      if (diffMins < 1) return 'Just now';
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-      return notifDate.toLocaleDateString();
-    },
-    
-    getNotificationIcon(type) {
-      const icons = {
-        'expense': '💰',
-        'payment': '💸',
-        'settlement': '🤝'
-      };
-      return icons[type] || '📌';
-    },
-    
-    getNotificationMessage(notification) {
-      const type = notification.transaction_type;
-      
-      if (type === 'expense') {
-        return `New expense: ${notification.description}`;
-      } else if (type === 'payment') {
-        return `Payment received: ${notification.description}`;
-      } else if (type === 'settlement') {
-        return `Settlement: ${notification.description}`;
-      }
-      
-      return notification.description;
     }
   }
 };
 </script>
 
 <template>
-  <div class="absolute right-0 top-12 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
-    <!-- Header -->
-    <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+  <div class="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-hidden flex flex-col">
+    <div class="p-4 border-b border-gray-200">
       <h3 class="font-semibold text-gray-800">Notifications</h3>
-      <span v-if="notifications.length > 0" class="text-xs text-gray-500">
-        {{ notifications.length }} recent
-      </span>
     </div>
     
     <!-- Loading State -->
-    <div v-if="isLoading && notifications.length === 0" class="p-8 text-center">
-      <div class="animate-spin w-8 h-8 border-4 border-[#0761FE] border-t-transparent rounded-full mx-auto"></div>
-      <p class="text-sm text-gray-500 mt-2">Loading...</p>
+    <div v-if="loading" class="p-4 space-y-3">
+      <div v-for="i in 3" :key="i" class="animate-pulse">
+        <div class="flex gap-3">
+          <div class="h-10 w-10 bg-gray-200 rounded-full"></div>
+          <div class="flex-1">
+            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Notifications List -->
-    <div v-else-if="notifications.length > 0" class="max-h-96 overflow-y-auto">
+    <div v-else-if="notifications.length > 0" class="overflow-y-auto flex-1">
       <div
         v-for="notification in notifications"
         :key="notification._id"
         @click="handleNotificationClick(notification)"
-        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+        class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 transition-colors"
+        :class="{ 'bg-blue-50': !notification.read }"
       >
-        <div class="flex items-start gap-3">
-          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-            <span class="text-lg">{{ getNotificationIcon(notification.transaction_type) }}</span>
+        <div class="flex gap-3">
+          <div class="flex-shrink-0">
+            <span class="text-2xl">{{ getNotificationIcon(notification.type) }}</span>
           </div>
-          
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-900">
-              {{ getNotificationMessage(notification) }}
+            <p class="font-medium text-sm" :class="getNotificationColor(notification.type)">
+              {{ notification.title }}
             </p>
-            <p class="text-xs text-gray-600 mt-1">
-              <span v-if="notification.payer_id">{{ notification.payer_id.name }}</span>
-              <span v-if="notification.receiver_id"> → {{ notification.receiver_id.name }}</span>
-            </p>
-            <p class="text-xs text-gray-500 mt-1" v-if="notification.group_id">
-              Group: {{ notification.group_id.name || 'Unknown' }}
-            </p>
-            <p class="text-xs text-gray-500 mt-1">
-              {{ formatDate(notification.transaction_date || notification.created_at) }}
+            <p class="text-xs text-gray-600 mt-1">{{ notification.description }}</p>
+            <p class="text-xs text-gray-400 mt-1">
+              {{ new Date(notification.created_at).toLocaleString() }}
             </p>
           </div>
-          
-          <div class="flex-shrink-0 text-sm font-semibold text-[#0761FE]">
-            ₱{{ notification.amount.toFixed(2) }}
+          <div v-if="!notification.read" class="flex-shrink-0">
+            <div class="h-2 w-2 bg-blue-500 rounded-full"></div>
           </div>
         </div>
       </div>
@@ -203,19 +217,16 @@ export default {
     
     <!-- Empty State -->
     <div v-else class="p-8 text-center">
-      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-        <span class="text-3xl">🔔</span>
-      </div>
-      <p class="text-sm text-gray-600">No notifications yet</p>
+      <p class="text-gray-500 text-sm">No notifications yet</p>
     </div>
     
-    <!-- Footer -->
-    <div class="p-3 border-t border-gray-200 text-center">
+    <!-- View All Button -->
+    <div class="p-3 border-t border-gray-200">
       <button
         @click="handleViewAll"
-        class="text-sm text-[#0761FE] hover:text-[#013DC0] font-medium"
+        class="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium"
       >
-        View All Activity
+        View All Notifications
       </button>
     </div>
   </div>

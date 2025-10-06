@@ -78,13 +78,35 @@ export default {
 
   methods: {
     async fetchCreditorPaymentMethods() {
-      if (!this.selectedDebt || !this.selectedDebt.creditorId) return;
+      if (!this.selectedDebt) {
+        console.error('No debt selected');
+        return;
+      }
+      
+      let creditorId = this.selectedDebt.creditorId 
+                    || this.selectedDebt.creditor_id 
+                    || this.selectedDebt.ower_id
+                    || this.selectedDebt.owerId;
+      
+      if (creditorId && typeof creditorId === 'object') {
+        creditorId = creditorId._id || creditorId.id;
+      }
+      
+      console.log('Selected Debt:', this.selectedDebt);
+      console.log('Attempting to fetch payment methods for creditor ID:', creditorId);
+      
+      if (!creditorId) {
+        console.error('Could not determine creditor ID from debt object');
+        console.error('Available fields:', Object.keys(this.selectedDebt));
+        this.error = 'Unable to load payment methods - invalid creditor information';
+        return;
+      }
       
       this.loadingPaymentMethods = true;
       
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/users/${this.selectedDebt.creditorId}/payment-methods`, {
+        const response = await fetch(`http://localhost:3001/api/users/${creditorId}/payment-methods`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -94,7 +116,13 @@ export default {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('Payment methods response:', data);
           this.creditorPaymentMethods = data.payment_methods || [];
+          console.log('Loaded payment methods:', this.creditorPaymentMethods);
+        } else {
+          console.error('Failed to fetch payment methods. Status:', response.status);
+          const errorData = await response.json();
+          console.error('Error data:', errorData);
         }
       } catch (error) {
         console.error('Error fetching payment methods:', error);
