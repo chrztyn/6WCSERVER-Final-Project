@@ -111,6 +111,8 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
     const { group_id, creditor_name, amount, payment_method, confirmation_code } = req.body;
     const payer_id = req.user._id;
 
+    const round2 = (num) => Math.round(parseFloat(num) * 100) / 100;
+    
     if ((payment_method === 'GCash' || payment_method === 'Bank') && !confirmation_code) {
       return res.status(400).json({ error: 'Confirmation code is required for GCash or Bank payments' });
     }
@@ -181,8 +183,8 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
         metadata: {
           settlement_details: {
             original_debt: originalDebt,
-            remaining_debt: Math.max(0, originalDebt - parseFloat(amount)),
-            settlement_percentage: originalDebt > 0 ? (parseFloat(amount) / originalDebt * 100) : 100
+            remaining_debt: round2(Math.max(0, originalDebt - paymentAmount)),
+            settlement_percentage: originalDebt > 0 ? round2((paymentAmount / originalDebt) * 100) : 100
           }
         }
       };

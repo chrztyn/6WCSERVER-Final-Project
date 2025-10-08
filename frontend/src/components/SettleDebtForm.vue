@@ -56,6 +56,22 @@ export default {
       );
       
       return method || null;
+    },
+    formattedTotalDebt() {
+      if (!this.selectedDebt?.amount) return '0.00';
+      return parseFloat(this.selectedDebt.amount).toFixed(2);
+    },
+    formattedAmount: {
+      get() {
+        if (this.paymentForm.amount === null || this.paymentForm.amount === undefined) return '';
+        return Math.round(this.paymentForm.amount); 
+      },
+      set(value) {
+        const parsed = parseFloat(value);
+        this.paymentForm.amount = isNaN(parsed)
+          ? 0
+          : Math.round(parsed);
+      }
     }
   },
 
@@ -350,11 +366,11 @@ export default {
               <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">PHP</span>
               <input
                 id="amount"
-                v-model.number="paymentForm.amount"
+                v-model.number="formattedAmount"
                 type="number"
-                step="0.01"
-                :max="selectedDebt?.amount"
-                min="0.01"
+                step="1"
+                :max="selectedDebt && selectedDebt.amount ? Math.round(selectedDebt.amount) : null"
+                min="1"
                 class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0761FE] focus:border-transparent outline-none transition-colors"
                 :class="{ 'border-red-500': formErrors.amount }"
                 required
