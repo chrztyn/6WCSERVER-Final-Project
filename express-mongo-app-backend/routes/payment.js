@@ -130,12 +130,14 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
     });
 
     const originalDebt = originalBalance ? originalBalance.amount : 0;
+    
+    const paymentAmount = parseFloat(amount);
 
     const paymentData = {
       payer_id,
       creditor_id: creditor._id,
       group_id,
-      amount: parseFloat(amount),
+      amount: paymentAmount, 
       payment_method,
       confirmation_code: confirmation_code || null,
       payment_status: 'confirmed'
@@ -153,15 +155,13 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
 
     const newPayment = new Payment(paymentData);
     await newPayment.save();
-
-    // Update balance
     await Balance.findOneAndUpdate(
       {
         group_id: group_id,
         user_id: payer_id,
         owed_to: creditor._id
       },
-      { $inc: { amount: -parseFloat(amount) } },
+      { $inc: { amount: -paymentAmount } }, 
       { new: true }
     );
 
@@ -171,7 +171,7 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
         related_expense_id: newPayment._id,
         source_model: 'Payment',
         group_id: group_id,
-        amount: parseFloat(amount),
+        amount: paymentAmount, 
         currency: 'PHP',
         payer_id: payer_id,
         receiver_id: creditor._id,
@@ -183,8 +183,8 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
         metadata: {
           settlement_details: {
             original_debt: originalDebt,
-            remaining_debt: round2(Math.max(0, originalDebt - paymentAmount)),
-            settlement_percentage: originalDebt > 0 ? round2((paymentAmount / originalDebt) * 100) : 100
+            remaining_debt: round2(Math.max(0, originalDebt - paymentAmount)), 
+            settlement_percentage: originalDebt > 0 ? round2((paymentAmount / originalDebt) * 100) : 100 
           }
         }
       };

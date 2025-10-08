@@ -17,7 +17,6 @@ export default {
   },
   methods: {
       async handleActivityClick(data) {
-      // Debug localStorage
       console.log('Raw localStorage user:', localStorage.getItem('user'));
       
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');

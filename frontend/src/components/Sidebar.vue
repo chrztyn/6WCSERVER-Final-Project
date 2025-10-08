@@ -129,37 +129,6 @@ export default {
 </script>
 
 <template>
-    <!-- Hamburger Button - Only visible on mobile/tablet -->
-    <button
-        @click="toggleMobileMenu"
-        class="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors"
-        aria-label="Toggle menu"
-    >
-        <svg class="w-6 h-6 text-[#0761FE]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path 
-                v-if="!isMobileMenuOpen"
-                stroke-linecap="round" 
-                stroke-linejoin="round" 
-                stroke-width="2" 
-                d="M4 6h16M4 12h16M4 18h16"
-            />
-            <path 
-                v-else
-                stroke-linecap="round" 
-                stroke-linejoin="round" 
-                stroke-width="2" 
-                d="M6 18L18 6M6 6l12 12"
-            />
-        </svg>
-    </button>
-
-    <!-- Overlay for mobile menu -->
-    <div
-        v-if="isMobileMenuOpen"
-        @click="closeMobileMenu"
-        class="fixed inset-0 bg-black/50 bg-opacity-50 z-40 lg:hidden transition-opacity"
-    ></div>
-
     <!-- Sidebar -->
     <aside 
         class="fixed lg:sticky top-0 left-0 w-64 bg-white border-r border-gray-200 p-6 h-screen shadow-lg z-40 transform transition-transform duration-300 ease-in-out"

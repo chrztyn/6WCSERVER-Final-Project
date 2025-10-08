@@ -176,8 +176,23 @@ export default {
 </script>
 
 <template>
-  <!-- Same template as before -->
   <div class="flex items-center gap-4 p-6 w-full mx-auto bg-white border-b border-gray-200 shadow-sm">
+    <!-- Hamburger Button -->
+    <button
+      @click="$emit('toggle-sidebar')"
+      class="lg:hidden p-2 rounded-lg bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors"
+      aria-label="Toggle menu"
+    >
+      <svg class="w-6 h-6 text-[#0761FE]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round" 
+          stroke-linejoin="round" 
+          stroke-width="2"
+          d="M4 6h16M4 12h16M4 18h16"
+        />
+      </svg>
+    </button>
+
     <div class="text-xl font-bold text-[#0761FE] tracking-tight">SplitSmart</div>
     
     <!-- Search Bar -->
