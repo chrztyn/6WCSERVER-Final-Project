@@ -321,13 +321,24 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
         if (!group) {
             return res.status(404).json({ error: 'Group not found' });
         }
+        if (!Array.isArray(members) || members.length === 0) {
+          return res.status(400).json({ error: 'No members provided' });
+        }
 
         const usersToAdd = await Users.find({ email: { $in: members } });
         const newMemberIds = usersToAdd.map(u => u._id.toString());
         const existingMemberIds = group.members.map(m => m.toString());
+        const foundEmails = usersToAdd.map(u => u.email);
+        const notFoundEmails = members.filter(email => !foundEmails.includes(email));
 
+        if (usersToAdd.length === 0) {
+            return res.status(404).json({ 
+                error: 'No valid users found. Please make sure the users have signed up.',
+                membersNotFound: notFoundEmails 
+            });
+        }
+        
         const addedMemberIds = [];
-        const notFoundEmails = [];
 
         for (const user of usersToAdd) {
             if (!existingMemberIds.includes(user._id.toString())) {
@@ -399,8 +410,10 @@ router.post('/:id/add-members', authMiddleware, async (req, res) => {
         const addedUsers = await Users.find({ _id: { $in: addedMemberIds } }).select('name email');
         
         res.status(200).json({
-            message: 'Members added successfully',
-            addedUsers: addedUsers,
+            message: addedMemberIds.length > 0
+              ? 'Members added successfully'
+              : 'No new members were added',
+            addedUsers,
             membersNotFound: notFoundEmails
         });
 

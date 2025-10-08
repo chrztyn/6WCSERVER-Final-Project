@@ -79,7 +79,6 @@ export default {
       return isValid;
     },
 
-    // Add members to group (Note: This would need a backend endpoint)
     async addMembers() {
       if (!this.validateForm()) return;
       
@@ -88,18 +87,13 @@ export default {
       this.successMessage = null;
       
       try {
-        // Note: You'll need to create a backend endpoint for adding members
-        // This is a placeholder implementation
         const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
+        if (!token) throw new Error('No authentication token found');
 
         const validMembers = this.formData.members
           .map(email => email.trim())
           .filter(email => email);
 
-        // You'd need to create this endpoint in your backend
         const response = await fetch(`http://localhost:3001/api/groups/${this.groupId}/add-members`, {
           method: 'POST',
           headers: {
@@ -109,30 +103,20 @@ export default {
           body: JSON.stringify({ members: validMembers })
         });
 
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          this.$router.push('/login');
+          return;
+        }
         if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            this.$router.push('/login');
-            return;
-          }
-          
-          // For now, show a placeholder success since endpoint doesn't exist
-          if (response.status === 404) {
-            this.successMessage = 'Members would be added (endpoint not implemented yet)';
-            setTimeout(() => {
-              this.$emit('member-added');
-              this.closeForm();
-            }, 1500);
-            return;
-          }
-          
-          throw new Error(`Failed to add members: ${response.status}`);
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Failed to add members (Status: ${response.status})`);
         }
 
         const data = await response.json();
-        this.successMessage = 'Members added successfully!';
-        
+        this.successMessage = data.message || 'Members added successfully!';
+
         setTimeout(() => {
           this.$emit('member-added', data);
           this.closeForm();
@@ -140,12 +124,7 @@ export default {
         
       } catch (error) {
         console.error('Error adding members:', error);
-        // For demo purposes, show success message since backend endpoint doesn't exist
-        this.successMessage = 'Members would be added (backend endpoint needed)';
-        setTimeout(() => {
-          this.$emit('member-added');
-          this.closeForm();
-        }, 1500);
+        this.error = error.message || 'Failed to add members.';
       } finally {
         this.loading = false;
       }
