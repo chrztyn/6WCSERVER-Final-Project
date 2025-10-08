@@ -268,7 +268,6 @@ export default {
       }
 
       try {
-        // If there's a new image, upload it first
         let qrCodeUrl = this.paymentForm.qr_code_url;
         
         if (this.paymentImageFile) {
@@ -621,9 +620,6 @@ export default {
               >
                 <option value="GCash">GCash</option>
                 <option value="Bank Transfer">Bank Transfer</option>
-                <option value="PayMaya">PayMaya</option>
-                <option value="PayPal">PayPal</option>
-                <option value="Other">Other</option>
               </select>
             </div>
 

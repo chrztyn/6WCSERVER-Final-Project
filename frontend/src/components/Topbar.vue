@@ -134,10 +134,8 @@ export default {
           return;
         }
         
-        // For all other cases, check if user still has access to the group
         try {
           const token = localStorage.getItem('token');
-          // FIXED: Changed from localhost:5173 to localhost:3001
           const response = await axios.get(`http://localhost:3001/api/groups/${notificationData.id}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -147,7 +145,6 @@ export default {
           
         } catch (error) {
           console.log('Cannot access group:', error.response?.status, error);
-          // Do nothing - user doesn't have access to this group anymore
           return;
         }
         return;
@@ -176,11 +173,11 @@ export default {
 </script>
 
 <template>
-  <div class="flex items-center gap-4 p-6 w-full mx-auto bg-white border-b border-gray-200 shadow-sm">
+  <div class="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-4 w-full bg-white border-b border-gray-200 shadow-sm">
     <!-- Hamburger Button -->
     <button
       @click="$emit('toggle-sidebar')"
-      class="lg:hidden p-2 rounded-lg bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors"
+      class="lg:hidden p-2 rounded-lg bg-white border border-gray-200 shadow-md hover:bg-gray-50 transition-colors flex-shrink-0"
       aria-label="Toggle menu"
     >
       <svg class="w-6 h-6 text-[#0761FE]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,10 +190,17 @@ export default {
       </svg>
     </button>
 
-    <div class="text-xl font-bold text-[#0761FE] tracking-tight">SplitSmart</div>
+    <!-- Logo and Brand -->
+    <router-link 
+      to="/dashboard"
+      class="flex items-center gap-2 text-xl font-bold text-[#0761FE] tracking-tight flex-shrink-0 hover:opacity-80 transition-opacity"
+    >
+      <img src="/Icons/splitsmartlogo.png" alt="splitsmart logo" class="w-9 h-9">
+      <span class="hidden sm:inline font-bold whitespace-nowrap">SplitSmart</span>
+    </router-link>
     
     <!-- Search Bar -->
-    <div class="flex-1 relative">
+    <div class="flex-1 relative min-w-0">
       <input 
         v-model="searchQuery"
         @input="handleSearch"
@@ -258,11 +262,11 @@ export default {
     </div>
 
     <!-- Notification Button -->
-    <div class="relative">
+    <div class="relative flex-shrink-0">
       <button
         ref="notificationButton"
         @click="toggleNotifications"
-        class="h-10 w-10 rounded-lg bg-[#0761FE] hover:bg-[#013DC0] flex items-center justify-center border-none p-0 transition-colors relative"
+        class="h-10 w-10 rounded-lg bg-[#0761FE] hover:bg-[#013DC0] flex items-center justify-center border-none p-0 transition-colors relative flex-shrink-0"
       >
         <img src="/Icons/light notif.png" alt="Light Notification Icon" class="h-6 w-6">
         
