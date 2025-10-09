@@ -6,8 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const Users = require('../models/users'); 
 const router = express.Router();
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
+const profileStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = 'uploads/profiles';
     if (!fs.existsSync(uploadDir)) {
@@ -21,6 +20,20 @@ const storage = multer.diskStorage({
   }
 });
 
+const qrStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/qrcodes';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'qr-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 const fileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -29,8 +42,14 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ 
-  storage: storage,
+const uploadProfile = multer({ 
+  storage: profileStorage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
+
+const uploadQR = multer({ 
+  storage: qrStorage,
   fileFilter: fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }
 });
@@ -48,7 +67,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
 });
 
 // EDIT user infos (including profile picture)
-router.put('/profile', authMiddleware, upload.single('profile_picture'), async (req, res) => {
+router.put('/profile', authMiddleware, uploadProfile.single('profile_picture'), async (req, res) => {
   try {
     const user = await Users.findById(req.user._id);
     if (!user) return res.status(404).json({msg: "User not found"});
@@ -65,7 +84,6 @@ router.put('/profile', authMiddleware, upload.single('profile_picture'), async (
       }
     }
 
-    // Handle profile picture upload
     if (req.file) {
       if (user.profile_picture) {
         const oldPath = path.join(__dirname, '..', user.profile_picture);
@@ -101,7 +119,6 @@ router.delete('/profile/picture', authMiddleware, async (req, res) => {
     const user = await Users.findById(req.user._id);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // Delete the file from server
     if (user.profile_picture) {
       const filePath = path.join(__dirname, '..', user.profile_picture);
       if (fs.existsSync(filePath)) {
@@ -127,13 +144,13 @@ router.delete('/profile/picture', authMiddleware, async (req, res) => {
 });
 
 // UPLOAD QR Code for payment methods
-router.post('/upload-qr', authMiddleware, upload.single('qr_code'), async (req, res) => {
+router.post('/upload-qr', authMiddleware, uploadQR.single('qr_code'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ msg: 'No file uploaded' });
     }
 
-    const qrCodeUrl = `/uploads/profiles/${req.file.filename}`;
+    const qrCodeUrl = `/uploads/qrcodes/${req.file.filename}`;
     
     res.json({ 
       message: 'QR code uploaded successfully',
