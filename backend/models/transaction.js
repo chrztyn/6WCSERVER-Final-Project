@@ -42,7 +42,7 @@ const transactionHistorySchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'failed', 'cancelled', 'completed'],
-    default: 'confirmed',
+    default: 'pending',
     index: true
   },
   
@@ -173,7 +173,7 @@ transactionHistorySchema.statics.createFromPayment = async function(payment, cre
       receiver_id: payment.creditor_id,
       description: payment.expense_id ? 'Expense payment' : 'Debt settlement',
       payment_method: payment.payment_method,
-      status: payment.payment_status,
+      status: 'pending',
       transaction_date: payment.created_at || new Date(),
       created_by: createdBy,
       metadata: {}

@@ -323,4 +323,42 @@ router.patch("/:id/read", async (req, res) => {
   }
 });
 
+router.patch('/:id/status', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, reason } = req.body; 
+
+    const transaction = await TransactionHistory.findById(id);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (transaction.receiver_id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to modify this transaction' });
+    }
+
+    if (transaction.status !== 'pending') {
+      return res.status(400).json({ message: 'Transaction is not pending' });
+    }
+
+    if (action === 'confirm') {
+      transaction.status = 'confirmed';
+    } else if (action === 'reject') {
+      transaction.status = 'failed';
+      if (reason) transaction.metadata.rejection_reason = reason;
+    } else {
+      return res.status(400).json({ message: 'Invalid action' });
+    }
+
+    transaction.updated_by = req.user.id;
+    transaction.updated_at = new Date();
+    await transaction.save();
+
+    res.json({ message: `Transaction ${action}ed successfully`, transaction });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error updating transaction status' });
+  }
+});
+
 module.exports = router;
