@@ -29,7 +29,7 @@
                     this.loading = true;
                     this.error = null;
                     
-                    const response = await api.get('/api/balances/summary/me');
+                    const response = await api.get('/balances/summary/me');
                     this.balanceData = response.data;
                     
                 } catch (error) {
