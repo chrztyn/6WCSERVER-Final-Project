@@ -49,7 +49,7 @@ export default {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch('http://localhost:3001/api/balances/summary/me', {
+        const response = await fetch('/api/balances/summary/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -82,7 +82,7 @@ export default {
         const token = localStorage.getItem('token');
         const currentUser = JSON.parse(localStorage.getItem('user'));
 
-        const groupsResponse = await fetch('http://localhost:3001/api/groups/my', {
+        const groupsResponse = await fetch('/api/groups/my', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -98,7 +98,7 @@ export default {
         let allDebts = [];
 
         for (const group of groups) {
-          const balanceResponse = await fetch(`http://localhost:3001/api/balances/summary/${group._id}`, {
+          const balanceResponse = await fetch(`/api/balances/summary/${group._id}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,

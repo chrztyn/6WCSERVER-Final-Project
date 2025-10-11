@@ -70,7 +70,7 @@ export default {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`http://localhost:3001/api/expenses/${groupId}`, {
+        const response = await fetch(`/api/expenses/${groupId}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -184,7 +184,7 @@ export default {
           const expenseId = this.expenseToDeleteId;
           const token = localStorage.getItem('token');
           
-          const response = await fetch(`http://localhost:3001/api/expenses/${expenseId}`, {
+          const response = await fetch(`/api/expenses/${expenseId}`, {
               method: 'DELETE',
               headers: {
                   'Authorization': `Bearer ${token}`
@@ -284,7 +284,7 @@ export default {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch(`http://localhost:3001/api/transactions/group/${groupId}?limit=10`, {
+        const response = await fetch(`/api/transactions/group/${groupId}?limit=10`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -322,7 +322,7 @@ export default {
     async viewDetails(transaction) {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:3001/api/transactions/${transaction._id}`, {
+        const response = await axios.get(`/api/transactions/${transaction._id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         

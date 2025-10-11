@@ -21,7 +21,7 @@ export default {
                 this.loading = true;
                 this.error = null;
                 
-                const response = await api.get('http://localhost:3001/api/reports/overview');
+                const response = await api.get('/api/reports/overview');
                 
                 // Map the backend data to frontend format
                 this.youOweData = response.data.overView.youOwe || [];

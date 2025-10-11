@@ -41,7 +41,7 @@ export default {
       this.error = null;
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/users/profile', {
+        const response = await axios.get('/api/users/profile', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -52,7 +52,7 @@ export default {
           email: response.data.email || '',
           phone_number: response.data.phone_number || '',
           profile_picture: response.data.profile_picture 
-            ? `http://localhost:3001${response.data.profile_picture}` 
+            ? `${response.data.profile_picture}` 
             : null,
           payment_methods: response.data.payment_methods || []
         };
@@ -109,7 +109,7 @@ export default {
         }
 
         const response = await axios.put(
-          'http://localhost:3001/api/users/profile',
+          '/api/users/profile',
           formData,
           {
             headers: {
@@ -124,7 +124,7 @@ export default {
           email: response.data.user.email,
           phone_number: response.data.user.phone_number || '',
           profile_picture: response.data.user.profile_picture 
-            ? `http://localhost:3001${response.data.user.profile_picture}` 
+            ? `${response.data.user.profile_picture}` 
             : null,
           payment_methods: response.data.user.payment_methods || []
         };
@@ -174,7 +174,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         await axios.delete(
-          'http://localhost:3001/api/users/profile/picture',
+          '/api/users/profile/picture',
           {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -276,7 +276,7 @@ export default {
           formData.append('qr_code', this.paymentImageFile);
 
           const uploadResponse = await axios.post(
-            'http://localhost:3001/api/users/upload-qr',
+            '/api/users/upload-qr',
             formData,
             {
               headers: {
@@ -326,7 +326,7 @@ export default {
 
     getQRCodeUrl(url) {
       if (!url) return null;
-      return url.startsWith('http') ? url : `http://localhost:3001${url}`;
+      return url.startsWith('http') ? url : `${url}`;
     }
   }
 };

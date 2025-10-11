@@ -16,7 +16,7 @@ export default {
     async fetchNotifications() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
+        const response = await axios.get('/api/transactions/recent?limit=20', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -83,7 +83,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         await axios.patch(
-          `http://localhost:3001/api/transactions/${notification._id}/read`,
+          `/api/transactions/${notification._id}/read`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );

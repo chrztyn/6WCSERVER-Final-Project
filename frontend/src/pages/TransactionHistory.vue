@@ -89,7 +89,7 @@ export default {
           }
         });
         
-        const response = await axios.get('http://localhost:3001/api/transactions', {
+        const response = await axios.get('/api/transactions', {
           headers: { 'Authorization': `Bearer ${token}` },
           params
         });
@@ -109,7 +109,7 @@ export default {
     async fetchStats() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/transactions/stats/summary', {
+        const response = await axios.get('/api/transactions/stats/summary', {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -122,7 +122,7 @@ export default {
     async fetchGroups() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/groups/my', {
+        const response = await axios.get('/api/groups/my', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -135,7 +135,7 @@ export default {
     async openTransactionById(transactionId) {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:3001/api/transactions/${transactionId}`, {
+        const response = await axios.get(`/api/transactions/${transactionId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -192,7 +192,7 @@ export default {
     async viewDetails(transaction) {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:3001/api/transactions/${transaction._id}`, {
+        const response = await axios.get(`/api/transactions/${transaction._id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -208,7 +208,7 @@ export default {
       if (this.selectedTransaction) {
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`http://localhost:3001/api/transactions/${this.selectedTransaction._id}`, {
+          const response = await axios.get(`/api/transactions/${this.selectedTransaction._id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           

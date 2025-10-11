@@ -108,7 +108,7 @@ export default {
 
         console.log('Creating group with data:', requestData);
 
-        const response = await fetch('http://localhost:3001/api/groups', {
+        const response = await fetch('/api/groups', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

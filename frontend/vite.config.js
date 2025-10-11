@@ -16,6 +16,7 @@ export default defineConfig({
       'localhost', 
       'splitsmart.folded.cloud',
     ],
+
   },
 
 })

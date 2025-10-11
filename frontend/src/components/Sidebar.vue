@@ -41,7 +41,7 @@ export default {
                     return;
                 }
 
-                const response = await fetch('http://localhost:3001/api/users/profile', {
+                const response = await fetch('/api/users/profile', {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,

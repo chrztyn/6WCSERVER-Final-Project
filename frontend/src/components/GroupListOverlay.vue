@@ -50,7 +50,7 @@ export default {
           throw new Error('No authentication token found');
         }
 
-        const response = await fetch('http://localhost:3001/api/groups/my', {
+        const response = await fetch('/api/groups/my', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -97,7 +97,7 @@ export default {
 
       for (const group of this.groups) {
         try {
-          const response = await fetch(`http://localhost:3001/api/groups/${group.id}/can-leave`, {
+          const response = await fetch(`/api/groups/${group.id}/can-leave`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -189,7 +189,7 @@ export default {
         const groupId = this.groupToLeaveId;
         const token = localStorage.getItem('token');
         
-        const response = await fetch(`http://localhost:3001/api/groups/${groupId}/leave`, {
+        const response = await fetch(`/api/groups/${groupId}/leave`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

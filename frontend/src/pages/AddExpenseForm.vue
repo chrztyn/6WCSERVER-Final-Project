@@ -79,7 +79,7 @@ export default {
           this.groupMembers = currentGroup.members;
           console.log('Loaded group members:', this.groupMembers);
         } else {
-          const response = await fetch(`http://localhost:3001/api/groups/${this.groupId}`, {
+          const response = await fetch(`/api/groups/${this.groupId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -163,7 +163,7 @@ export default {
 
         console.log('Adding expense with data:', requestData);
 
-        const response = await fetch(`http://localhost:3001/api/expenses/${this.groupId}`, {
+        const response = await fetch(`/api/expenses/${this.groupId}`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

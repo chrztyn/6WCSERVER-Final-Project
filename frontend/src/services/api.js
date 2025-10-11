@@ -5,7 +5,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production' 
     ? '/api'  // In production, requests go to same domain
-    : 'http://localhost:3001/api',  // In development, requests go to backend server
+    : '/api',  // In development, requests go to backend server
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

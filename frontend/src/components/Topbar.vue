@@ -47,7 +47,7 @@ export default {
       }
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`http://localhost:3001/api/search?q=${encodeURIComponent(this.searchQuery)}`, {
+        const res = await axios.get(`/api/search?q=${encodeURIComponent(this.searchQuery)}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         this.searchResults = res.data;
@@ -136,7 +136,7 @@ export default {
         
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get(`http://localhost:3001/api/groups/${notificationData.id}`, {
+          const response = await axios.get(`/api/groups/${notificationData.id}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           
@@ -157,7 +157,7 @@ export default {
     async fetchUnreadCount() {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=10', {
+        const response = await axios.get('/api/transactions/recent?limit=10', {
           headers: { Authorization: `Bearer ${token}` }
         });
         

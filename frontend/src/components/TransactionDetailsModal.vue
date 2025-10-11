@@ -67,7 +67,7 @@ export default {
       
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get(`http://localhost:3001/api/payments/proof/${paymentId}`, {
+        const response = await axios.get(`/api/payments/proof/${paymentId}`, {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
         });
@@ -101,7 +101,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         await axios.put(
-          `http://localhost:3001/api/payments/${this.paymentId}/confirm`,
+          `/api/payments/${this.paymentId}/confirm`,
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -143,7 +143,7 @@ export default {
       try {
         const token = localStorage.getItem('token');
         await axios.put(
-          `http://localhost:3001/api/payments/${this.paymentId}/reject`,
+          `/api/payments/${this.paymentId}/reject`,
           { reason: this.rejectReason },
           { headers: { Authorization: `Bearer ${token}` } }
         );

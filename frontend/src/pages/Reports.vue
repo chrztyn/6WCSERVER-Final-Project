@@ -27,7 +27,7 @@ export default {
         this.error = null;
         
         // Fetch detailed report data
-        const response = await api.get('http://localhost:3001/api/reports/detailed');
+        const response = await api.get('/api/reports/detailed');
         
         // Map backend data to frontend format
         this.youOwe = response.data.detailed.youOwe.map((item, index) => ({

@@ -42,7 +42,7 @@ export default {
                 
                 for (let group of this.groups) {
                     try {
-                        const expenseResponse = await axios.get(`http://localhost:3001/api/expenses/${group._id}`, {
+                        const expenseResponse = await axios.get(`/api/expenses/${group._id}`, {
                             headers: {
                                 'Authorization': `Bearer ${token}`,
                                 'Content-Type': 'application/json'

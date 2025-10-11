@@ -122,7 +122,7 @@ export default {
       
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/users/${creditorId}/payment-methods`, {
+        const response = await fetch(`/api/users/${creditorId}/payment-methods`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -240,7 +240,7 @@ export default {
           console.log(pair[0], pair[1]);
         }
 
-        const response = await fetch('http://localhost:3001/api/payments/settle-debt', {
+        const response = await fetch('/api/payments/settle-debt', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -306,7 +306,7 @@ export default {
       if (!path) return null;
       // Remove leading slash if present
       const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-      return `http://localhost:3001/${cleanPath}`;
+      return `/${cleanPath}`;
     }
   }
 };

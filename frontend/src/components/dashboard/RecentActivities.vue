@@ -27,7 +27,7 @@ export default {
                 this.error = null;
                 
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
+                const response = await axios.get('/api/transactions/recent?limit=20', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 
@@ -160,7 +160,7 @@ export default {
         async fetchRecentActivitiesSilently() {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:3001/api/transactions/recent?limit=20', {
+                const response = await axios.get('/api/transactions/recent?limit=20', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 

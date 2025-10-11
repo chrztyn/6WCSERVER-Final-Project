@@ -94,7 +94,7 @@ export default {
           .map(email => email.trim())
           .filter(email => email);
 
-        const response = await fetch(`http://localhost:3001/api/groups/${this.groupId}/add-members`, {
+        const response = await fetch(`/api/groups/${this.groupId}/add-members`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
