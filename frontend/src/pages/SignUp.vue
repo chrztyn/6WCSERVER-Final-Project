@@ -104,10 +104,7 @@ const handleSignup = async () => {
       successMessage.value = 'Account created successfully! You can now log in.'
       // Reset form
       resetSignupForm()
-      // You can redirect to login page after a delay:
-      // setTimeout(() => {
-      //   this.$router.push('/login')
-      // }, 2000)
+
     } else {
       if (data.errors) {
         errorMessage.value = data.errors.map(err => err.msg).join(', ')
@@ -135,9 +132,8 @@ const resetSignupForm = () => {
   Object.keys(signupErrors).forEach(key => signupErrors[key] = '')
 }
 
-// Navigate to login (you'll need to implement this based on your router)
+
 const goToLogin = () => {
-  // Example: this.$router.push('/login')
   console.log('Navigate to login page')
 }
 </script>

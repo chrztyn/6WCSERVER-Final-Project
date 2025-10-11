@@ -52,7 +52,7 @@ const transactionHistorySchema = new mongoose.Schema({
     default: 'N/A'
   },
   
-  // NEW: Generic source tracking
+ 
   source_id: {
     type: mongoose.Schema.Types.ObjectId,
     refPath: 'source_model',
@@ -64,7 +64,7 @@ const transactionHistorySchema = new mongoose.Schema({
     enum: ['Expense', 'Payment', 'Group', 'User'],
   },
   
-  // Keep for backward compatibility with existing data
+
   related_expense_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Expense'
@@ -299,17 +299,14 @@ transactionHistorySchema.methods.getRelatedTransactions = async function() {
   }).sort({ transaction_date: -1 });
 };
 
-// Virtual for formatted amount
 transactionHistorySchema.virtual('formatted_amount').get(function() {
   return `₱${this.amount.toFixed(2)}`;
 });
 
-// Virtual for transaction age
 transactionHistorySchema.virtual('age_in_days').get(function() {
   return Math.floor((new Date() - this.transaction_date) / (1000 * 60 * 60 * 24));
 });
 
-// Ensure virtuals are included in JSON output
 transactionHistorySchema.set('toJSON', { virtuals: true });
 transactionHistorySchema.set('toObject', { virtuals: true });
 

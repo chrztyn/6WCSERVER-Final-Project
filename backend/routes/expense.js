@@ -178,7 +178,6 @@ router.post('/:groupId', authMiddleware, async (req, res) => {
     // Update balances
     await updateBalancesAfterExpense(groupId, memberShare, payorUsers);
 
-    // Create transaction history for the expense
     try {
       const splitDetails = splitBetweenIds.map(memberId => ({
         user_id: memberId,
@@ -315,10 +314,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    // Revert balances
     await revertBalancesAfterExpenseDelete(expense.group._id, memberShare, expense.paid_by);
 
-    // Update related transaction history to cancelled status
     try {
       await TransactionHistory.updateMany(
         { source_id: expenseId, source_model: 'Expense' },
@@ -369,12 +366,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ msg: 'Only the payor(s) of this expense can update it' });
     }
 
-    // Store original values
     const originalAmount = expense.amount;
     const originalDescription = expense.description;
     const originalSplitBetween = expense.split_between.map(m => m._id);
 
-    // Validate new split_between members if provided
     let newSplitBetweenIds = originalSplitBetween;
     if (split_between !== undefined) {
       if (!split_between || split_between.length === 0) {
@@ -397,12 +392,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    // Check if amount or split_between changed
     const amountChanged = amount !== undefined && amount !== originalAmount;
     const splitChanged = JSON.stringify(newSplitBetweenIds.map(id => id.toString()).sort()) !== 
                         JSON.stringify(originalSplitBetween.map(id => id.toString()).sort());
     
-    // Update expense fields
     if (description !== undefined) expense.description = description;
     if (amount !== undefined) expense.amount = amount;
     if (split_between !== undefined) expense.split_between = newSplitBetweenIds;
@@ -410,7 +403,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     await expense.save();
 
-    // Recalculate balances if amount or split members changed
     if (amountChanged || splitChanged) {
         await revertAndApplyNewBalances(
           expense, 
@@ -420,8 +412,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
           newSplitBetweenIds
         );
     }
-
-    // Create transaction history for the update
     try {
       const transactionData = {
         transaction_type: 'expense',
