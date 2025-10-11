@@ -86,7 +86,12 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
-app.use((err, req, res, next) => {
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.url}`);
+  next();
+});
+
+app.use((err) => {
   console.error('Unhandled error:', err);
   res.status(500).json({
     error: 'Internal server error',
