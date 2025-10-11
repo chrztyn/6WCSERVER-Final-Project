@@ -141,7 +141,7 @@ const transactionHistorySchema = new mongoose.Schema({
   },
   
 }, {
-  collection: 'transaction_history'
+  collection: 'history'
 });
 
 transactionHistorySchema.index({ group_id: 1, transaction_date: -1 });
