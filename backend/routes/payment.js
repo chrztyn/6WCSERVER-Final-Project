@@ -84,18 +84,10 @@ router.post('/', authMiddleware, upload.single('proof'), async (req, res) => {
     const newPayment = new Payment(paymentData);
     await newPayment.save();
 
-    // try {
-    //   await TransactionHistory.createFromPayment(newPayment, req.user._id);
-    //   console.log('Transaction history created for payment:', newPayment._id);
-    // } catch (historyError) {
-    //   console.error('Failed to create transaction history for payment:', historyError.message);
-    // }
-
-    // const { updated, remaining } = await applyPayment(payer_id, expense.group._id || expense.group, amount);
     try {
       const transactionData = {
         transaction_type: 'payment',
-        related_expense_id: newPayment._id,
+        source_id: newPayment._id,
         source_model: 'Payment',
         group_id: newPayment.group_id || expense.group,
         amount: parseFloat(newPayment.amount),
@@ -114,10 +106,11 @@ router.post('/', authMiddleware, upload.single('proof'), async (req, res) => {
       };
       const transaction = new TransactionHistory(transactionData);
       await transaction.save();
+      console.log('Transaction history created for payment:', newPayment._id);
     } catch (historyError) {
       console.error('Failed to create pending transaction history for payment:', historyError.message);
-
     }
+    
     res.status(201).json({
       message: 'Payment submitted and waiting for confirmation',
       payment: newPayment,
@@ -133,6 +126,11 @@ router.post('/', authMiddleware, upload.single('proof'), async (req, res) => {
 // SETTLE debt without specific expense
 router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, res) => {
   try {
+    console.log('=== Settle Debt Request ===');
+    console.log('Body:', req.body);
+    console.log('File:', req.file);
+    console.log('User:', req.user._id);
+
     const { group_id, creditor_name, amount, payment_method, confirmation_code } = req.body;
     const payer_id = req.user._id;
     const round2 = (num) => Math.round(parseFloat(num) * 100) / 100;
@@ -171,6 +169,7 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
     };
 
     if (req.file) {
+      console.log('File uploaded successfully:', req.file.filename);
       paymentData.proof_file = {
         filename: req.file.filename,
         originalname: req.file.originalname,
@@ -178,20 +177,18 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
         size: req.file.size,
         path: req.file.path
       };
+    } else {
+      console.log('No file uploaded');
     }
 
     const newPayment = new Payment(paymentData);
     await newPayment.save();
-
-    res.status(201).json({
-      message: 'Debt settlement request submitted. Awaiting creditor confirmation.',
-      payment: newPayment
-    });
+    console.log('Payment saved:', newPayment._id);
 
     try {
       const transactionData = {
         transaction_type: 'settlement',
-        related_expense_id: newPayment._id,
+        source_id: newPayment._id, 
         source_model: 'Payment',
         group_id: group_id,
         amount: parseFloat(amount),
@@ -213,9 +210,11 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
 
       const transaction = new TransactionHistory(transactionData);
       await transaction.save();
+      console.log('Transaction history created with ID:', transaction._id);
     } catch (historyError) {
       console.error('Failed to create pending transaction history for settlement:', historyError.message);
     }
+
     return res.status(201).json({
       message: 'Debt settlement request submitted. Awaiting creditor confirmation.',
       payment: newPayment
@@ -223,9 +222,12 @@ router.post('/settle-debt', authMiddleware, upload.single('proof'), async (req, 
 
   } catch (err) {
     console.error('Error settling debt:', err);
+    
     if (req.file && fs.existsSync(req.file.path)) {
+      console.log('Cleaning up uploaded file due to error');
       fs.unlinkSync(req.file.path);
     }
+    
     res.status(500).json({ error: 'Failed to settle debt', details: err.message });
   }
 });
@@ -259,19 +261,29 @@ router.put('/:id/confirm', authMiddleware, async (req, res) => {
     }
 
     await payment.save();
+    
     try {
-      const existingTx = await TransactionHistory.findOne({
-        related_expense_id: payment._id,
-        source_model: 'Payment'
-      });
-
-      if (existingTx) {
-        existingTx.status = 'confirmed'; 
-        existingTx.transaction_date = new Date(); 
-        existingTx.updated_at = new Date(); 
-        existingTx.updated_by = req.user._id; 
-        await existingTx.save();
-      } else {
+      console.log('Updating transaction history for payment:', payment._id);
+      
+      const updateResult = await TransactionHistory.updateMany(
+        { 
+          source_id: payment._id,
+          source_model: 'Payment'
+        },
+        { 
+          $set: {
+            status: 'confirmed',
+            transaction_date: new Date(),
+            updated_at: new Date(),
+            updated_by: req.user._id
+          }
+        }
+      );
+      
+      console.log('Transaction history update result:', updateResult);
+      
+      if (updateResult.matchedCount === 0) {
+        console.log('No existing transaction found, creating new one');
         if (payment.type === 'settlement') {
           const transactionData = {
             transaction_type: 'settlement',
@@ -301,6 +313,7 @@ router.put('/:id/confirm', authMiddleware, async (req, res) => {
       }
     } catch (historyError) {
       console.error('Failed to update transaction history upon confirm:', historyError.message);
+      console.error('Full error:', historyError);
     }
 
     return res.json({ message: 'Payment confirmed and balances updated', payment });
@@ -334,13 +347,21 @@ router.put('/:id/reject', authMiddleware, async (req, res) => {
     if (reason) payment.rejection_reason = reason; 
 
     await payment.save();
+    
     try {
-      await TransactionHistory.updateMany(
-        { related_expense_id: payment._id, source_model: 'Payment' },
-        { status: 'rejected', updated_at: new Date(), updated_by: req.user._id } 
+      console.log('Updating transaction history for rejected payment:', payment._id);
+      const result = await TransactionHistory.updateMany(
+        { source_id: payment._id, source_model: 'Payment' },
+        { 
+          status: 'rejected', 
+          updated_at: new Date(), 
+          updated_by: req.user._id 
+        }
       );
+      console.log('Transaction history update result:', result);
     } catch (historyError) {
       console.error('Failed to update transaction history status on reject:', historyError.message);
+      console.error('Full error:', historyError);
     }
 
     return res.json({ message: 'Payment rejected', payment });
@@ -349,7 +370,6 @@ router.put('/:id/reject', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Failed to reject payment', details: err.message });
   }
 });
-
 
 // GET payment proof file
 router.get('/proof/:paymentId', authMiddleware, async (req, res) => {

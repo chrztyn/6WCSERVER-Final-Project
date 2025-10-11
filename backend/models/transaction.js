@@ -41,7 +41,7 @@ const transactionHistorySchema = new mongoose.Schema({
   
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'failed', 'cancelled', 'completed'],
+    enum: ['pending', 'confirmed', 'failed', 'cancelled', 'completed', 'rejected'],
     default: 'pending',
     index: true
   },
@@ -52,9 +52,27 @@ const transactionHistorySchema = new mongoose.Schema({
     default: 'N/A'
   },
   
+  // NEW: Generic source tracking
+  source_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: 'source_model',
+    index: true
+  },
+  
+  source_model: {
+    type: String,
+    enum: ['Expense', 'Payment', 'Group', 'User'],
+  },
+  
+  // Keep for backward compatibility with existing data
   related_expense_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Expense'
+  },
+
+  currency: {
+    type: String,
+    default: 'PHP'
   },
 
   metadata: {
@@ -83,6 +101,8 @@ const transactionHistorySchema = new mongoose.Schema({
       remaining_debt: Number,
       settlement_percentage: Number
     },
+    original_debt: Number,
+    remaining_debt: Number,
     group_name: String,
     user_name: String
   },
@@ -129,6 +149,7 @@ transactionHistorySchema.index({ payer_id: 1, transaction_date: -1 });
 transactionHistorySchema.index({ receiver_id: 1, transaction_date: -1 });
 transactionHistorySchema.index({ transaction_type: 1, status: 1 });
 transactionHistorySchema.index({ group_id: 1, transaction_type: 1, status: 1 });
+transactionHistorySchema.index({ source_id: 1, source_model: 1 });
 
 transactionHistorySchema.pre('save', function(next) {
   this.updated_at = new Date();
@@ -146,6 +167,8 @@ transactionHistorySchema.statics.createFromExpense = async function(expense, cre
   try {
     const transaction_history = new this({
       transaction_type: 'expense',
+      source_id: expense._id,
+      source_model: 'Expense',
       related_expense_id: expense._id,
       payer_id: expense.paid_by[0],
       group_id: expense.group,
@@ -153,7 +176,8 @@ transactionHistorySchema.statics.createFromExpense = async function(expense, cre
       description: expense.description,
       category: expense.category || 'General',
       transaction_date: expense.date || new Date(),
-      created_by: createdBy
+      created_by: createdBy,
+      status: 'confirmed'
     });
     
     return await transaction_history.save();
@@ -166,14 +190,17 @@ transactionHistorySchema.statics.createFromPayment = async function(payment, cre
   try {
     const transactionData = {
       transaction_type: payment.expense_id ? 'payment' : 'settlement',
-      related_expense_id: payment.expense_id || null,
+      source_id: payment._id, 
+      source_model: 'Payment',
+      related_expense_id: payment.expense_id || null, 
       group_id: payment.group_id,
       amount: payment.amount,
+      currency: 'PHP',
       payer_id: payment.payer_id,
       receiver_id: payment.creditor_id,
       description: payment.expense_id ? 'Expense payment' : 'Debt settlement',
       payment_method: payment.payment_method,
-      status: 'pending',
+      status: payment.payment_status || 'pending',
       transaction_date: payment.created_at || new Date(),
       created_by: createdBy,
       metadata: {}
@@ -187,6 +214,11 @@ transactionHistorySchema.statics.createFromPayment = async function(payment, cre
       transactionData.metadata.proof_file = payment.proof_file;
     }
     
+    if (payment.metadata) {
+      transactionData.metadata.original_debt = payment.metadata.original_debt;
+      transactionData.metadata.remaining_debt = payment.metadata.remaining_debt;
+    }
+    
     const transaction_history = new this(transactionData);
     return await transaction_history.save();
   } catch (error) {
@@ -198,6 +230,8 @@ transactionHistorySchema.statics.createGroupLeftTransaction = async function(use
   try {
     const transaction_history = new this({
       transaction_type: 'group_left',
+      source_id: groupId,
+      source_model: 'Group',
       payer_id: userId,
       receiver_id: null,
       group_id: groupId,
@@ -222,6 +256,8 @@ transactionHistorySchema.statics.createGroupCreatedTransaction = async function(
   try {
     const memberTransactions = memberIds.map(memberId => ({
       transaction_type: 'group_created',
+      source_id: groupId,
+      source_model: 'Group',
       payer_id: creatorId,
       receiver_id: memberId,
       group_id: groupId,
@@ -247,6 +283,7 @@ transactionHistorySchema.statics.createGroupCreatedTransaction = async function(
 transactionHistorySchema.methods.getRelatedTransactions = async function() {
   return await this.constructor.find({
     $or: [
+      { source_id: this.source_id },
       { related_expense_id: this.related_expense_id },
       { 
         group_id: this.group_id,

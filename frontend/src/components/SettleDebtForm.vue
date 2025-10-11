@@ -223,7 +223,7 @@ export default {
         const formData = new FormData();
         formData.append('group_id', this.selectedDebt.groupId);
         formData.append('creditor_name', this.selectedDebt.creditorName);
-        formData.append('amount', this.paymentForm.amount);
+        formData.append('amount', this.paymentForm.amount.toString());
         formData.append('payment_method', this.paymentForm.payment_method);
         
         if (this.paymentForm.confirmation_code) {
@@ -231,7 +231,13 @@ export default {
         }
         
         if (this.paymentForm.proof_file) {
-          formData.append('proof', this.paymentForm.proof_file);
+          console.log('Appending file:', this.paymentForm.proof_file.name, 'Size:', this.paymentForm.proof_file.size);
+          formData.append('proof', this.paymentForm.proof_file, this.paymentForm.proof_file.name);
+        }
+
+        console.log('FormData contents:');
+        for (let pair of formData.entries()) {
+          console.log(pair[0], pair[1]);
         }
 
         const response = await fetch('http://localhost:3001/api/payments/settle-debt', {
@@ -248,6 +254,7 @@ export default {
         }
 
         const result = await response.json();
+        console.log('Settlement result:', result);
         this.successMessage = 'Debt settlement successful!';
 
         this.$emit('debt-settled', this.selectedDebt, this.paymentForm.amount);

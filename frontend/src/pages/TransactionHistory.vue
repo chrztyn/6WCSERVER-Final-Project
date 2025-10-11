@@ -1,8 +1,12 @@
 <script>
 import axios from 'axios';
+import TransactionDetailsModal from '../components/TransactionDetailsModal.vue';
 
 export default {
   name: 'TransactionHistory',
+  components: {
+    TransactionDetailsModal
+  },
   data() {
     return {
       transactions: [],
@@ -24,7 +28,12 @@ export default {
       searchQuery: '',
       selectedTransaction: null,
       showDetailsModal: false,
-      showFilters: false
+      showFilters: false,
+      toast: {
+        show: false,
+        message: '',
+        type: 'success'
+      }
     };
   },
   computed: {
@@ -195,6 +204,21 @@ export default {
       }
     },
     
+    async refreshTransactionDetails() {
+      if (this.selectedTransaction) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`http://localhost:3001/api/transactions/${this.selectedTransaction._id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          this.selectedTransaction = response.data;
+        } catch (err) {
+          console.error('Error refreshing transaction details:', err);
+        }
+      }
+    },
+    
     closeDetailsModal() {
       this.showDetailsModal = false;
       this.selectedTransaction = null;
@@ -202,6 +226,11 @@ export default {
       if (this.$route.params.id) {
         this.$router.push('/transaction');
       }
+    },
+    
+    async handleRefresh() {
+      await this.fetchTransactions();
+      await this.fetchStats();
     },
     
     getTransactionIcon(type) {
@@ -226,7 +255,8 @@ export default {
       const colors = {
         'confirmed': 'bg-green-100 text-green-800',
         'pending': 'bg-yellow-100 text-yellow-800',
-        'cancelled': 'bg-red-100 text-red-800'
+        'cancelled': 'bg-red-100 text-red-800',
+        'rejected': 'bg-red-100 text-red-800'
       };
       return colors[status] || 'bg-gray-100 text-gray-800';
     },
@@ -252,6 +282,13 @@ export default {
     isIncoming(transaction) {
       const userId = JSON.parse(localStorage.getItem('user') || '{}')._id;
       return transaction.receiver_id?._id === userId;
+    },
+    
+    showToast(data) {
+      this.toast = { show: true, message: data.message, type: data.type };
+      setTimeout(() => {
+        this.toast.show = false;
+      }, 3000);
     }
   }
 };
@@ -441,7 +478,7 @@ export default {
                 <tr
                   v-for="transaction in filteredTransactions"
                   :key="transaction._id"
-                  class="hover:bg-gray-50 transition-colors"
+                  class="hover:bg-gray-50 transition-colors cursor-pointer"
                   @click="viewDetails(transaction)"
                 >
                   <td class="px-6 py-4 whitespace-nowrap ">
@@ -490,8 +527,6 @@ export default {
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {{ formatDate(transaction.transaction_date || transaction.created_at) }}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -513,7 +548,7 @@ export default {
                   v-for="transaction in filteredTransactions"
                   :key="transaction._id"
                   @click="viewDetails(transaction)"
-                  class="hover:bg-gray-50 transition-colors"
+                  class="hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
@@ -549,8 +584,6 @@ export default {
                       {{ transaction.status }}
                     </span>
                   </td>
-                  <td class="px-4 py-3 whitespace-nowrap">
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -561,7 +594,7 @@ export default {
             <div
               v-for="transaction in filteredTransactions"
               :key="transaction._id"
-              class="p-4 hover:bg-gray-50 transition-colors"
+              class="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
               @click="viewDetails(transaction)"
             >
               <div class="flex items-start justify-between mb-3">
@@ -685,82 +718,23 @@ export default {
       </div>
     </div>
 
-    <!-- Transaction Details Modal -->
+    <!-- Transaction Details Modal Component -->
+    <TransactionDetailsModal
+      :transaction="selectedTransaction"
+      :isOpen="showDetailsModal"
+      @close="showDetailsModal = false"
+      @refresh="fetchTransactions"
+      @toast="showToast"
+    />
+
+    <!-- Toast Notification -->
     <div
-      v-if="showDetailsModal && selectedTransaction"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      @click.self="closeDetailsModal"
+      v-if="toast.show"
+      class="fixed bottom-4 right-4 z-[70] animate-slide-up"
+      :class="toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'"
     >
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-          <h3 class="text-lg sm:text-xl font-semibold text-gray-800">Transaction Details</h3>
-          <button @click="closeDetailsModal" class="text-gray-400 hover:text-gray-600">
-            <span class="text-2xl">×</span>
-          </button>
-        </div>
-        
-        <div class="p-4 sm:p-6 space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="sm:col-span-2">
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Transaction ID</label>
-              <p class="text-xs sm:text-sm text-gray-900 font-mono break-all">{{ selectedTransaction._id }}</p>
-            </div>
-            <div>
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Type</label>
-              <p class="text-sm text-gray-900 capitalize">{{ selectedTransaction.transaction_type }}</p>
-            </div>
-            <div>
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Status</label>
-              <span
-                class="inline-block px-3 py-1 text-xs font-semibold rounded-full mt-1"
-                :class="getStatusColor(selectedTransaction.status)"
-              >
-                {{ selectedTransaction.status }}
-              </span>
-            </div>
-            <div class="sm:col-span-2">
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Amount</label>
-              <p class="text-xl sm:text-2xl font-bold text-gray-900">{{ formatCurrency(selectedTransaction.amount) }}</p>
-            </div>
-            <div>
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Payer</label>
-              <p class="text-sm text-gray-900">{{ selectedTransaction.payer_id?.name || 'N/A' }}</p>
-              <p class="text-xs text-gray-500">{{ selectedTransaction.payer_id?.email || 'N/A' }}</p>
-            </div>
-            <div v-if="selectedTransaction.receiver_id">
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Recipient</label>
-              <p class="text-sm text-gray-900">{{ selectedTransaction.receiver_id?.name || 'N/A' }}</p>
-              <p class="text-xs text-gray-500">{{ selectedTransaction.receiver_id?.email || 'N/A' }}</p>
-            </div>
-            <div>
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Group</label>
-              <p class="text-sm text-gray-900">{{ selectedTransaction.group_id?.name || 'N/A' }}</p>
-            </div>
-            <div>
-              <label class="text-xs sm:text-sm font-medium text-gray-600">Date</label>
-              <p class="text-sm text-gray-900">{{ formatDate(selectedTransaction.transaction_date) }}</p>
-            </div>
-          </div>
-          
-          <div>
-            <label class="text-xs sm:text-sm font-medium text-gray-600">Description</label>
-            <p class="text-sm text-gray-900 mt-1">{{ selectedTransaction.description }}</p>
-          </div>
-          
-          <div v-if="selectedTransaction.metadata" class="bg-gray-50 rounded-lg p-3 sm:p-4">
-            <label class="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Additional Information</label>
-            <pre class="text-xs text-gray-700 overflow-x-auto">{{ JSON.stringify(selectedTransaction.metadata, null, 2) }}</pre>
-          </div>
-        </div>
-        
-        <div class="p-4 sm:p-6 border-t border-gray-200 flex justify-end sticky bottom-0 bg-white">
-          <button
-            @click="closeDetailsModal"
-            class="w-full sm:w-auto px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-          >
-            Close
-          </button>
-        </div>
+      <div class="px-6 py-4 rounded-lg shadow-lg text-white font-medium">
+        {{ toast.message }}
       </div>
     </div>
   </div>
