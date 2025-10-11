@@ -87,7 +87,10 @@ app.use((error, req, res, next) => {
 });
 
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  console.error('\n=== UNHANDLED ERROR ===');
+  console.error(err.stack || err);
+  console.error('========================\n');
+
   res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
