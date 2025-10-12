@@ -13,8 +13,9 @@ defineOptions({
 
     <!-- Hero Section -->
     <section
-      class="relative overflow-hidden h-screen flex items-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
-    >
+  class="relative overflow-hidden min-h-screen flex items-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 pt-[80px]"
+>
+
       <!-- Background Pattern -->
       <div class="absolute inset-0 opacity-40">
         <div

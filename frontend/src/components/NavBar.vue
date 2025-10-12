@@ -7,7 +7,7 @@
 </script>
 
 <template>
-    <nav class="backdrop-blur-sm absolute top-0 left-0 w-full z-10">
+    <nav class="backdrop-blur-sm fixed top-0 left-0 w-full z-30">
         <div class="max-w-7xl flex flex-wrap items-center justify-between mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <a href="/" class="flex items-center space-x-3 rtl:space-x-reverse">
             <span class="text-xl font-bold text-[#0761FE] tracking-tight whitespace-nowrap dark:text-white">SplitSmart</span>
